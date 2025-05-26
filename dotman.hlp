@@ -1,0 +1,23 @@
+# -----------
+# dotman help
+# -----------
+
+------------------------
+DotMan                .
+A Manager for .NET   /|\
+v0.0.1               / \
+------------------------
+
+https://github.com/reallukee/dotman
+
+Usage:
+  dotman [command] [options]
+
+Commands:
+  list
+
+Options:
+  -help
+
+Examples:
+  dotman list sdk -online -channelVersion 8.0 -filter releases
