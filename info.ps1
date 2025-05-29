@@ -7,7 +7,7 @@
 #
 # https://github.com/reallukee/dotman
 #
-# list.ps1
+# info.ps1
 #
 
 param (
@@ -130,14 +130,26 @@ function Get-Output-Object {
     }
 
     $Object = [PSCustomObject]@{
-        "Type"            = $PrintableTarget
+        "Type"             = $PrintableTarget
 
-        "Channel Version" = $Parent."channel-version"
-        "Version"         = $Item."${ValidTarget}"."version"
-        "Version Display" = $Item."${ValidTarget}"."version-display"
-        "Runtime Version" = $RuntimeVersion
+        "Channel Version"  = $ReleasesData."channel-version"
+        "Support Phase"    = $ReleasesData."support-phase"
+        "Release Type"     = $ReleasesData."release-type"
+        "EOL Date"         = $ReleasesData."eol-date"
+        "Lifecycle Policy" = $ReleasesData."lifecycle-policy"
+        "Release Date"     = $PSItem."release-date"
+        "Release Version"  = $PSItem."release-version"
+        "Security"         = $PSItem."security"
+        "Version"          = $PSItem."${ValidTarget}"."version"
+        "Version Display"  = $PSItem."${ValidTarget}"."version-display"
+        "Runtime Version"  = $RuntimeVersion
+        "VS Version"       = $PSItem."${ValidTarget}"."vs-version"
+        "VS Mac Display"   = $PSItem."${ValidTarget}"."vs-mac-version"
+        "C# Version"       = $PSItem."${ValidTarget}"."csharp-version"
+        "F# Version"       = $PSItem."${ValidTarget}"."fsharp-version"
+        "VB .NET Version"  = $PSItem."${ValidTarget}"."vb-version"
 
-        "Version Type"    = $VersionType
+        "Version Type"     = $VersionType
     }
 
     return $Object
@@ -256,17 +268,29 @@ function Get-Online-Runtime {
             $RuntimeVersion = $Item."version"
         }
 
-        $VersionType = Get-Version-Type $Item."${ValidTarget}"."version"
+        $VersionType = Get-Version-Type $PSItem."version"
 
         [PSCustomObject]@{
-            "Type"            = $PrintableTarget
+            "Type"             = $PrintableTarget
 
-            "Channel Version" = $Parent."channel-version"
-            "Version"         = $Item."version"
-            "Version Display" = $Item."version-display"
-            "Runtime Version" = $RuntimeVersion
+            "Channel Version"  = $Parent."channel-version"
+            "Support Phase"    = $Parent."support-phase"
+            "Release Type"     = $Parent."release-type"
+            "EOL Date"         = $Parent."eol-date"
+            "Lifecycle Policy" = $Parent."lifecycle-policy"
+            "Release Date"     = $ReleasesData."release-date"
+            "Release Version"  = $ReleasesData."release-version"
+            "Security"         = $ReleasesData."security"
+            "Version"          = $Item."version"
+            "Version Display"  = $Item."version-display"
+            "Runtime Version"  = $RuntimeVersion
+            "VS Version"       = $Item."vs-version"
+            "VS Mac Display"   = $Item."vs-mac-version"
+            "C# Version"       = $Item."csharp-version"
+            "F# Version"       = $Item."fsharp-version"
+            "VB .NET Version"  = $Item."vb-version"
 
-            "Version Type"    = $VersionType
+            "Version Type"     = $VersionType
         }
     }
 
@@ -391,6 +415,6 @@ if ($Latest) {
     $Output = $Output | Select-Object -First 1
 }
 
-$Output | Format-Table -Property * -AutoSize
+$Output
 
 exit 0

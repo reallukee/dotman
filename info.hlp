@@ -1,5 +1,5 @@
 # ---------
-# list help
+# info help
 # ---------
 
 ------------------------
@@ -11,7 +11,7 @@ v0.1.0               / \
 https://github.com/reallukee/dotman
 
 Usage:
-  dotman list [target] [options]
+  dotman info [target] [options]
 
 Commands:
   sdk
@@ -32,12 +32,12 @@ Options:
   -nocache
 
 Examples:
-  dotman list sdk -online -channel 8.0 -runtime 8.0.10
-  dotman list sdk -online -channel 8.0
-  dotman list sdk -online -channels
-  dotman list sdk -online
-  dotman list runtime -online -channel 8.0 -runtime 8.0.10
-  dotman list runtime -online -channel 8.0
-  dotman list runtime -online -channels
-  dotman list runtime -online
+  dotman info sdk -online -channel 8.0 -runtime 8.0.10
+  dotman info sdk -online -channel 8.0
+  dotman info sdk -online -channels
+  dotman info sdk -online
+  dotman info runtime -online -channel 8.0 -runtime 8.0.10
+  dotman info runtime -online -channel 8.0
+  dotman info runtime -online -channels
+  dotman info runtime -online
 

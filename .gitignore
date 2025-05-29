@@ -1,4 +1,8 @@
 # Dump
+cache/
+
+temp/
+
 *.txt
 
 # Windows

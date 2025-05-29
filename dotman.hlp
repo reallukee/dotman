@@ -5,7 +5,7 @@
 ------------------------
 DotMan                .
 A Manager for .NET   /|\
-v0.0.1               / \
+v0.1.0               / \
 ------------------------
 
 https://github.com/reallukee/dotman
@@ -15,9 +15,13 @@ Usage:
 
 Commands:
   list
+  info
 
 Options:
   -help
+  -version
 
 Examples:
-  dotman list sdk -online -channelVersion 8.0 -filter releases
+  dotman list -help
+  dotman info -help
+
