@@ -1,9 +1,8 @@
+# Visual Studio Code
+.vscode/
+
 # Dump
 cache/
-
-temp/
-
-*.txt
 
 # Windows
 [Dd]esktop.ini

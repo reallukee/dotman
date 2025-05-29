@@ -5,13 +5,17 @@
 ------------------------
 DotMan                .
 A Manager for .NET   /|\
-v0.1.0               / \
+v0.1.1               / \
 ------------------------
 
 https://github.com/reallukee/dotman
 
+Description:
+  DotMan Info Utility
+
 Usage:
   dotman info [target] [options]
+  info [target] [options]
 
 Commands:
   sdk

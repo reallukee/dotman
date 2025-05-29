@@ -2,7 +2,7 @@
 # ------------------------
 # DotMan                .
 # A Manager for .NET   /|\
-# v0.1.0               / \
+# v0.1.1               / \
 # ------------------------
 #
 # https://github.com/reallukee/dotman
@@ -25,6 +25,8 @@ param (
     [string[]] $Args
 )
 
+
+
 function Help {
     param (
         [string] $HelpFile
@@ -37,22 +39,36 @@ function Help {
     Get-Content -Path $HelpFile | Where-Object {
         $PSItem -notmatch "^\s*#"
     } | ForEach-Object {
-        Write-Host $PSItem
+        $PSItem
+    }
+}
+
+if ($Help) {
+    if ($Command) {
+        $Args += "-Help"
+    } else {
+        Help -HelpFile "${PSScriptRoot}/dotman.hlp"
+
+        exit 0
     }
 }
 
 if ($Version) {
-    Write-Host "0.1.0"
+    if ($Command) {
+        $Args += "-Version"
+    } else {
+        Write-Host "0.1.1"
 
-    exit 0
+        exit 0
+    }
 }
 
-if ($Help) {
-    Help "dotman.hlp"
 
-    exit 0
+
+if (-not (Test-Path -Path "${PSScriptRoot}/${Command}.ps1" -PathType Leaf)) {
+    exit 1
 }
 
-& pwsh "$Command.ps1" @Args
+& pwsh "${PSScriptRoot}/${Command}.ps1" @Args
 
 exit 0

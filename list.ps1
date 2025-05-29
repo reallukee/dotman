@@ -2,7 +2,7 @@
 # ------------------------
 # DotMan                .
 # A Manager for .NET   /|\
-# v0.1.0               / \
+# v0.1.1               / \
 # ------------------------
 #
 # https://github.com/reallukee/dotman
@@ -39,6 +39,38 @@ param (
     [switch] $NoCache
 )
 
+
+
+function Help {
+    param (
+        [string] $HelpFile
+    )
+
+    if (-not (Test-Path $HelpFile)) {
+        exit 1
+    }
+
+    Get-Content -Path $HelpFile | Where-Object {
+        $PSItem -notmatch "^\s*#"
+    } | ForEach-Object {
+        $PSItem
+    }
+}
+
+if ($Help) {
+    Help -HelpFile "${PSScriptRoot}/list.hlp"
+
+    exit 0
+}
+
+if ($Version) {
+    Write-Host "0.1.1"
+
+    exit 0
+}
+
+
+
 if (-not $Target) {
     exit 1
 }
@@ -51,53 +83,121 @@ if ($Channels -and $Runtime) {
     exit 1
 }
 
-function Read-Database {
+
+
+$DATABASEBASEURI = "https://builds.dotnet.microsoft.com/dotnet/release-metadata"
+
+function Download-Database {
     param (
-        [string] $Uri
+        [string] $Uri,
+        [bool]   $NoCache
     )
 
-    $LocalFile  = $Uri -replace [regex]::Escape($BaseUri), "cache"
+    try {
+        if (-not $Uri) {
+            throw "MEOW!"
+        }
+
+        $Response = Invoke-WebRequest -Uri $Uri -UseBasicParsing
+        $Content = $Response.Content
+
+        if (-not $NoCache) {
+            $Content | Set-Content -Path $LocalFile -Encoding UTF8
+        }
+    }
+    catch {
+        exit 1
+    }
+}
+
+function Read-Database {
+    param (
+        [string] $Uri,
+        [bool]   $NoCache
+    )
+
+    $LocalFile = $Uri -replace [regex]::Escape($DATABASEBASEURI), "${PSScriptRoot}/cache"
     $RemoteFile = Invoke-WebRequest -Uri $Uri -Method Head -UseBasicParsing
 
     if (-not $NoCache) {
         $CachePath = Split-Path $LocalFile -Parent
 
         if (-not (Test-Path -Path $CachePath -PathType Container)) {
-            New-Item -Path $CachePath -ItemType Directory | Out-Null
+            New-Item -Path $CachePath -ItemType Directory -Force | Out-Null
         }
     }
 
     if (Test-Path -Path $LocalFile -PathType Leaf) {
-        $LocalDate  = (Get-Item $LocalFile).LastWriteTime
+        $LocalDate = (Get-Item $LocalFile).LastWriteTime
         $RemoteDate = [datetime]::Parse($RemoteFile.Headers["Last-Modified"])
 
         if ($RemoteDate -gt $LocalDate) {
-            $Response = Invoke-WebRequest -Uri $Uri -UseBasicParsing
-            $Content  = $Response.Content
-            $Data     = $Content | ConvertFrom-Json
-
-            if (-not $NoCache) {
-                $Content | Set-Content -Path $LocalFile -Encoding UTF8
-            }
-        } else {
-            $Response = "HELLO! MEOW!!!"
-            $Content  = Get-Content -Path $LocalFile -Raw -Encoding UTF8
-            $Data     = $Content | ConvertFrom-Json
+            Download-Database -Uri $Uri -NoCache $NoCache
         }
     } else {
-        $Response = Invoke-WebRequest -Uri $Uri -UseBasicParsing
-        $Content  = $Response.Content
-        $Data     = $Content | ConvertFrom-Json
+        Download-Database -Uri $Uri -NoCache $NoCache
+    }
 
-        if (-not $NoCache) {
-            $Content | Set-Content -Path $LocalFile -Encoding UTF8
-        }
+    try {
+        $Content = Get-Content -Path $LocalFile -Raw -Encoding UTF8
+        $Data = $Content | ConvertFrom-Json
+    }
+    catch {
+        exit 1
     }
 
     return $Data
 }
 
-function Get-Version-Type {
+
+
+$DOTNETROOT = "/usr/local/share/dotnet"
+
+if (-not (Test-Path -Path $DOTNETROOT -PathType Container)) {
+    exit 1
+}
+
+function Get-DotNet-Path {
+    param (
+        [string] $Target
+    )
+
+    $DotNetPaths = @{
+        "SDK"                = "${DotNetRoot}/sdk"
+        "Runtime"            = "${DotNetRoot}/shared/Microsoft.NETCore.App"
+        "NetCoreRuntime"     = "${DotNetRoot}/shared/Microsoft.NETCore.App"
+        "DesktopCoreRuntime" = "${DotNetRoot}/shared/Microsoft.WindowsDesktop.App"
+        "AspNetCoreRuntime"  = "${DotNetRoot}/shared/Microsoft.AspNetCore.App"
+    }
+
+    $DotNetPath = $DotNetPaths[$Target]
+
+    if (-not $DotNetPath) {
+        exit 1
+    }
+
+    if (-not (Test-Path -Path $DotNetPath -PathType Container)) {
+        exit 1
+    }
+
+    return $DotNetPath
+}
+
+function Get-Locals {
+    param (
+        [string] $Target
+    )
+
+    $TargetPath = Get-DotNet-Path -Target $Target
+
+    $Locals = Get-ChildItem -Path $TargetPath -Directory | Select-Object -ExpandProperty "Name"
+
+    return $Locals
+}
+
+
+
+function Get-Tag {
     param (
         [string] $Version
     )
@@ -121,90 +221,132 @@ function Get-Output-Object {
         [string] $ValidTarget
     )
 
-    $VersionType = Get-Version-Type $Item."${ValidTarget}"."version"
+    $Tag = Get-Tag -Version $Item."${ValidTarget}"."version"
 
-    if ($Item."runtime-version") {
+    if ($Item."${ValidTarget}"."runtime-version") {
         $RuntimeVersion = $Item."${ValidTarget}"."runtime-version"
     } else {
         $RuntimeVersion = $Item."${ValidTarget}"."version"
     }
 
     $Object = [PSCustomObject]@{
-        "Type"            = $PrintableTarget
+        "Type"    = $PrintableTarget
 
-        "Channel Version" = $Parent."channel-version"
-        "Version"         = $Item."${ValidTarget}"."version"
-        "Version Display" = $Item."${ValidTarget}"."version-display"
-        "Runtime Version" = $RuntimeVersion
+        "Channel" = $Parent."channel-version"
+        "Version" = $Item."${ValidTarget}"."version"
+        "Display" = $Item."${ValidTarget}"."version-display"
+        "Runtime" = $RuntimeVersion
 
-        "Version Type"    = $VersionType
+        "Tag"     = $Tag
     }
 
     return $Object
 }
 
-$BaseUri = "https://builds.dotnet.microsoft.com/dotnet/release-metadata"
 
-function Get-Online {
+
+function Run-List {
     param (
         [object] $ReleasesIndexData,
+        [string] $Target,
         [string] $PrintableTarget,
-        [string] $ValidTarget
+        [string] $ValidTarget,
+        [bool]   $NoCache
     )
+
+    if (-not $Online) {
+        $Locals = Get-Locals -Target $Target
+    }
 
     $Output = $ReleasesIndexData."releases-index" | ForEach-Object {
         $Parent = $PSItem
 
         $ReleasesUri = $PSItem."releases.json"
 
-        $ReleasesData = Read-Database $ReleasesUri
+        $ReleasesData = Read-Database -Uri $ReleasesUri -NoCache $NoCache
 
         $ReleasesData."releases" | ForEach-Object {
             $Item = $PSItem
 
-            Get-Output-Object $Parent $Item $PrintableTarget $ValidTarget
+            if (-not $Online) {
+                $Local = $Item."${ValidTarget}"."version"
+
+                if (-not ($Locals -contains $Local)) {
+                    return
+                }
+            }
+
+            Get-Output-Object `
+                -Parent $Parent `
+                -Item $Item `
+                -PrintableTarget $PrintableTarget `
+                -ValidTarget $ValidTarget
         }
     }
 
     return $Output
 }
 
-function Get-Online-Channels {
+function Run-List-Channels {
     param (
         [object] $ReleasesIndexData,
+        [string] $Target,
         [string] $PrintableTarget,
-        [string] $ValidTarget
+        [string] $ValidTarget,
+        [bool]   $NoCache
     )
+
+    if (-not $Online) {
+        $Locals = Get-Locals -Target $Target
+    }
 
     $Output = $ReleasesIndexData."releases-index" | ForEach-Object {
         $Parent = $PSItem
 
         $ReleasesUri = $PSItem."releases.json"
 
-        $ReleasesData = Read-Database $ReleasesUri
+        $ReleasesData = Read-Database -Uri $ReleasesUri -NoCache $NoCache
 
         $ReleasesData."releases" | ForEach-Object {
             $Item = $PSItem
 
-            Get-Output-Object $Parent $Item $PrintableTarget $ValidTarget
+            if (-not $Online) {
+                $Local = $Item."${ValidTarget}"."version"
+
+                if (-not ($Locals -contains $Local)) {
+                    return
+                }
+            }
+
+            Get-Output-Object `
+                -Parent $Parent `
+                -Item $Item `
+                -PrintableTarget $PrintableTarget `
+                -ValidTarget $ValidTarget
         } | Select-Object -First 1
     }
 
     return $Output
 }
 
-function Get-Online-Channel {
+function Run-List-Channel {
     param (
         [object] $ReleasesIndexData,
+        [string] $Target,
         [string] $PrintableTarget,
-        [string] $ValidTarget
+        [string] $ValidTarget,
+        [bool]   $NoCache
     )
+
+    if (-not $Online) {
+        $Locals = Get-Locals -Target $Target
+    }
 
     $ReleasesData = $ReleasesIndexData."releases-index" | ForEach-Object {
         if ($PSItem."channel-version" -eq $Channel) {
             $ReleasesUri = $PSItem."releases.json"
 
-            return Read-Database $ReleasesUri
+            return Read-Database -Uri $ReleasesUri -NoCache $NoCache
         }
     }
 
@@ -213,25 +355,42 @@ function Get-Online-Channel {
     $Output = $ReleasesData."releases" | ForEach-Object {
         $Item = $PSItem
 
-        Get-Output-Object $Parent $Item $PrintableTarget $ValidTarget
+        if (-not $Online) {
+            $Local = $Item."${ValidTarget}"."version"
+
+            if (-not ($Locals -contains $Local)) {
+                return
+            }
+        }
+
+        Get-Output-Object `
+            -Parent $Parent `
+            -Item $Item `
+            -PrintableTarget $PrintableTarget `
+            -ValidTarget $ValidTarget
     }
 
     return $Output
 }
 
-function Get-Online-Runtime {
+function Run-List-Runtime {
     param (
         [object] $ReleasesIndexData,
         [string] $Target,
         [string] $PrintableTarget,
-        [string] $ValidTarget
+        [string] $ValidTarget,
+        [bool]   $NoCache
     )
+
+    if (-not $Online) {
+        $Locals = Get-Locals -Target $Target
+    }
 
     $ReleasesData = $ReleasesIndexData."releases-index" | ForEach-Object {
         if ($PSItem."channel-version" -eq $Channel) {
             $ReleasesUri = $PSItem."releases.json"
 
-            return Read-Database $ReleasesUri
+            return Read-Database -Uri $ReleasesUri -NoCache $NoCache
         }
     }
 
@@ -250,28 +409,38 @@ function Get-Online-Runtime {
     $Output = $ReleasesData."${ValidTarget}${Fix}" | ForEach-Object {
         $Item = $PSItem
 
+        if (-not $Online) {
+            $Local = $Item."version"
+
+            if (-not ($Locals -contains $Local)) {
+                return
+            }
+        }
+
         if ($Item."runtime-version") {
             $RuntimeVersion = $Item."runtime-version"
         } else {
             $RuntimeVersion = $Item."version"
         }
 
-        $VersionType = Get-Version-Type $Item."${ValidTarget}"."version"
+        $Tag = Get-Tag -Version $Item."${ValidTarget}"."version"
 
         [PSCustomObject]@{
-            "Type"            = $PrintableTarget
+            "Type"    = $PrintableTarget
 
-            "Channel Version" = $Parent."channel-version"
-            "Version"         = $Item."version"
-            "Version Display" = $Item."version-display"
-            "Runtime Version" = $RuntimeVersion
+            "Channel" = $Parent."channel-version"
+            "Version" = $Item."version"
+            "Display" = $Item."version-display"
+            "Runtime" = $RuntimeVersion
 
-            "Version Type"    = $VersionType
+            "Tag "    = $Tag
         }
     }
 
     return $Output
 }
+
+
 
 function Get-ValidTarget {
     param (
@@ -309,88 +478,76 @@ function Get-PrintableTarget {
     return $PrintableTarget
 }
 
-$PrintableTarget = Get-PrintableTarget $Target
-$ValidTarget = Get-ValidTarget $Target
+$PrintableTarget = Get-PrintableTarget -Target $Target
+$ValidTarget = Get-ValidTarget -Target $Target
 
-function Help {
+
+
+$ReleasesIndexUri = "${DATABASEBASEURI}/releases-index.json"
+
+$ReleasesIndexData = Read-Database -Uri $ReleasesIndexUri -NoCache $NoCache
+
+function Write-Output {
     param (
-        [string] $HelpFile
+        [object] $Output,
+        [string] $Filter
     )
 
-    if (-not (Test-Path $HelpFile)) {
-        exit 1
-    }
-
-    Get-Content -Path $HelpFile | Where-Object {
-        $PSItem -notmatch "^\s*#"
-    } | ForEach-Object {
-        Write-Host $PSItem
-    }
-}
-
-if ($Version) {
-    Write-Host "0.1.0"
-
-    exit 0
-}
-
-if ($Help) {
-    Help "info.hlp"
-
-    exit 0
-}
-
-$ReleasesIndexUri = "${BaseUri}/releases-index.json"
-
-$ReleasesIndexData = Read-Database $ReleasesIndexUri
-
-if ($Online) {
-    if ($Channels) {
-        $Output = Get-Online-Channels `
-            -ReleasesIndexData $ReleasesIndexData `
-            -PrintableTarget $PrintableTarget `
-            -ValidTarget $ValidTarget
-    } elseif ($Channel) {
-        if ($Runtime) {
-            $Output = Get-Online-Runtime `
-                -ReleasesIndexData $ReleasesIndexData `
-                -Target $Target `
-                -PrintableTarget $PrintableTarget `
-                -ValidTarget $ValidTarget
-        } else {
-            $Output = Get-Online-Channel `
-                -ReleasesIndexData $ReleasesIndexData `
-                -PrintableTarget $PrintableTarget `
-                -ValidTarget $ValidTarget
+    if ($Filter) {
+        $Filters = @{
+            "Release" = "release"
+            "RC"      = "rc"
+            "Preview" = "preview"
         }
+
+        if ($Filters.ContainsKey($Filter)) {
+            $Property = $Filters[$Filter].ToLower()
+
+            $Output = $Output | Where-Object {
+                $PSItem."Tag".ToLower() -eq $Property
+            }
+        }
+    }
+
+    if ($Latest) {
+        $Output = $Output | Select-Object -First 1
+    }
+
+    $Output | Format-Table -Property * -AutoSize
+}
+
+if ($Channels) {
+    $Output = Run-List-Channels `
+        -ReleasesIndexData $ReleasesIndexData `
+        -Target $Target `
+        -PrintableTarget $PrintableTarget `
+        -ValidTarget $ValidTarget `
+        -NoCache $NoCache
+} elseif ($Channel) {
+    if ($Runtime) {
+        $Output = Run-List-Runtime `
+            -ReleasesIndexData $ReleasesIndexData `
+            -Target $Target `
+            -PrintableTarget $PrintableTarget `
+            -ValidTarget $ValidTarget `
+            -NoCache $NoCache
     } else {
-        $Output = Get-Online `
+        $Output = Run-List-Channel `
             -ReleasesIndexData $ReleasesIndexData `
+            -Target $Target `
             -PrintableTarget $PrintableTarget `
-            -ValidTarget $ValidTarget
+            -ValidTarget $ValidTarget `
+            -NoCache $NoCache
     }
+} else {
+    $Output = Run-List `
+        -ReleasesIndexData $ReleasesIndexData `
+        -Target $Target `
+        -PrintableTarget $PrintableTarget `
+        -ValidTarget $ValidTarget `
+        -NoCache $NoCache
 }
 
-if ($Filter) {
-    $Filters = @{
-        "Release" = "release"
-        "RC"      = "rc"
-        "Preview" = "preview"
-    }
-
-    if ($Filters.ContainsKey($Filter)) {
-        $Property = $Filters[$Filter].ToLower()
-
-        $Output = $Output | Where-Object {
-            $PSItem."Version Type".ToLower() -eq $Property
-        }
-    }
-}
-
-if ($Latest) {
-    $Output = $Output | Select-Object -First 1
-}
-
-$Output | Format-Table -Property * -AutoSize
+Write-Output -Output $Output -Filter $Filter
 
 exit 0
