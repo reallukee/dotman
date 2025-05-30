@@ -2,7 +2,7 @@
 ------------------------
 DotMan                .
 A Manager for .NET   /|\
-v0.1.1               / \
+v0.1.2               / \
 ------------------------
 ```
 
@@ -11,7 +11,7 @@ v0.1.1               / \
 🧩 A Manager for .NET!
 
 ```
-.\dotman.ps1 [Command] [Options]
+dotman [Command] [Options]
 ```
 
 

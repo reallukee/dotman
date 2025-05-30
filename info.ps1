@@ -1,9 +1,9 @@
 #
-# ------------------------
-# DotMan                .
-# A Manager for .NET   /|\
-# v0.1.1               / \
-# ------------------------
+# ------
+# DotMan
+# ------
+#
+# A Manager for .NET
 #
 # https://github.com/reallukee/dotman
 #
@@ -50,21 +50,43 @@ function Help {
         exit 1
     }
 
-    Get-Content -Path $HelpFile | Where-Object {
-        $PSItem -notmatch "^\s*#"
-    } | ForEach-Object {
-        $PSItem
+    try {
+        Get-Content -Path $HelpFile | Where-Object {
+            $PSItem -notmatch "^\s*#"
+        } | ForEach-Object {
+            $Version = Version
+
+            $PSItem -replace "A.B.C", $Version
+        }
+    }
+    catch {
+        exit 1
     }
 }
 
-if ($Help) {
-    Help -HelpFile "${PSScriptRoot}/info.hlp"
+function Version {
+    if (-not (Test-Path -Path "${PSScriptRoot}/VERSION" -PathType Leaf)) {
+        exit 1
+    }
+
+    try {
+        $Version = Get-Content -Path "${PSScriptRoot}/VERSION" -Raw
+    }
+    catch {
+        exit 1
+    }
+
+    return $Version
+}
+
+if ($Version) {
+    Version
 
     exit 0
 }
 
-if ($Version) {
-    Write-Host "0.1.1"
+if ($Help -or -not $Target) {
+    Help -HelpFile "${PSScriptRoot}/info.hlp"
 
     exit 0
 }
@@ -87,7 +109,7 @@ if ($Channels -and $Runtime) {
 
 $DATABASEBASEURI = "https://builds.dotnet.microsoft.com/dotnet/release-metadata"
 
-function Download-Database {
+function Receive-Database {
     param (
         [string] $Uri,
         [bool]   $NoCache
@@ -102,7 +124,7 @@ function Download-Database {
         $Content = $Response.Content
 
         if (-not $NoCache) {
-            $Content | Set-Content -Path $LocalFile -Encoding UTF8
+            $Content | Set-Content -Path $LocalFile -Encoding utf8
         }
     }
     catch {
@@ -116,7 +138,7 @@ function Read-Database {
         [bool]   $NoCache
     )
 
-    $LocalFile = $Uri -replace [regex]::Escape($DATABASEBASEURI), "${PSScriptRoot}/cache"
+    $LocalFile = $Uri -replace [regex]::Escape($DATABASEBASEURI), "${PSScriptRoot}/.cache"
     $RemoteFile = Invoke-WebRequest -Uri $Uri -Method Head -UseBasicParsing
 
     if (-not $NoCache) {
@@ -132,14 +154,14 @@ function Read-Database {
         $RemoteDate = [datetime]::Parse($RemoteFile.Headers["Last-Modified"])
 
         if ($RemoteDate -gt $LocalDate) {
-            Download-Database -Uri $Uri -NoCache $NoCache
+            Receive-Database -Uri $Uri -NoCache $NoCache
         }
     } else {
-        Download-Database -Uri $Uri -NoCache $NoCache
+        Receive-Database -Uri $Uri -NoCache $NoCache
     }
 
     try {
-        $Content = Get-Content -Path $LocalFile -Raw -Encoding UTF8
+        $Content = Get-Content -Path $LocalFile -Encoding utf8 -Raw
         $Data = $Content | ConvertFrom-Json
     }
     catch {
@@ -257,7 +279,7 @@ function Get-Output-Object {
 
 
 
-function Run-Info {
+function Receive-Info {
     param (
         [object] $ReleasesIndexData,
         [string] $Target,
@@ -299,7 +321,7 @@ function Run-Info {
     return $Output
 }
 
-function Run-Info-Channels {
+function Receive-Info-Channels {
     param (
         [object] $ReleasesIndexData,
         [string] $Target,
@@ -341,7 +363,7 @@ function Run-Info-Channels {
     return $Output
 }
 
-function Run-Info-Channel {
+function Receive-Info-Channel {
     param (
         [object] $ReleasesIndexData,
         [string] $Target,
@@ -385,7 +407,7 @@ function Run-Info-Channel {
     return $Output
 }
 
-function Run-Info-Runtime {
+function Receive-Info-Runtime {
     param (
         [object] $ReleasesIndexData,
         [string] $Target,
@@ -541,7 +563,7 @@ function Write-Output {
 }
 
 if ($Channels) {
-    $Output = Run-Info-Channels `
+    $Output = Receive-Info-Channels `
         -ReleasesIndexData $ReleasesIndexData `
         -Target $Target `
         -PrintableTarget $PrintableTarget `
@@ -549,14 +571,14 @@ if ($Channels) {
         -NoCache $NoCache
 } elseif ($Channel) {
     if ($Runtime) {
-        $Output = Run-Info-Runtime `
+        $Output = Receive-Info-Runtime `
             -ReleasesIndexData $ReleasesIndexData `
             -Target $Target `
             -PrintableTarget $PrintableTarget `
             -ValidTarget $ValidTarget `
             -NoCache $NoCache
     } else {
-        $Output = Run-Info-Channel `
+        $Output = Receive-Info-Channel `
             -ReleasesIndexData $ReleasesIndexData `
             -Target $Target `
             -PrintableTarget $PrintableTarget `
@@ -564,7 +586,7 @@ if ($Channels) {
             -NoCache $NoCache
     }
 } else {
-    $Output = Run-Info `
+    $Output = Receive-Info `
         -ReleasesIndexData $ReleasesIndexData `
         -Target $Target `
         -PrintableTarget $PrintableTarget `

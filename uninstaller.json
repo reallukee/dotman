@@ -1,0 +1,16 @@
+{
+  "files": [
+    "README.md",
+    "LICENSE",
+    "VERSION",
+    "dotman",
+    "dotman.ps1",
+    "dotman.hlp",
+    "list",
+    "list.ps1",
+    "list.hlp",
+    "info",
+    "info.ps1",
+    "info.hlp"
+  ]
+}

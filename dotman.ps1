@@ -1,9 +1,9 @@
 #
-# ------------------------
-# DotMan                .
-# A Manager for .NET   /|\
-# v0.1.1               / \
-# ------------------------
+# ------
+# DotMan
+# ------
+#
+# A Manager for .NET
 #
 # https://github.com/reallukee/dotman
 #
@@ -36,14 +36,46 @@ function Help {
         exit 1
     }
 
-    Get-Content -Path $HelpFile | Where-Object {
-        $PSItem -notmatch "^\s*#"
-    } | ForEach-Object {
-        $PSItem
+    try {
+        Get-Content -Path $HelpFile | Where-Object {
+            $PSItem -notmatch "^\s*#"
+        } | ForEach-Object {
+            $Version = Version
+
+            $PSItem -replace "A.B.C", $Version
+        }
+    }
+    catch {
+        exit 1
     }
 }
 
-if ($Help) {
+function Version {
+    if (-not (Test-Path -Path "${PSScriptRoot}/VERSION" -PathType Leaf)) {
+        exit 1
+    }
+
+    try {
+        $Version = Get-Content -Path "${PSScriptRoot}/VERSION" -Raw
+    }
+    catch {
+        exit 1
+    }
+
+    return $Version
+}
+
+if ($Version) {
+    if ($Command) {
+        $Args += "-Version"
+    } else {
+        Version
+
+        exit 0
+    }
+}
+
+if ($Help -or -not $Command) {
     if ($Command) {
         $Args += "-Help"
     } else {
@@ -53,15 +85,6 @@ if ($Help) {
     }
 }
 
-if ($Version) {
-    if ($Command) {
-        $Args += "-Version"
-    } else {
-        Write-Host "0.1.1"
-
-        exit 0
-    }
-}
 
 
 

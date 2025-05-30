@@ -2,7 +2,7 @@
 .vscode/
 
 # Dump
-cache/
+.cache/
 
 # Windows
 [Dd]esktop.ini
