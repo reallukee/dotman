@@ -27,6 +27,7 @@ param (
     [switch] $Online,
     [switch] $Channels,
     [string] $Channel,
+    [switch] $Runtimes,
     [string] $Runtime,
     [ValidateSet(
         "All",
@@ -35,6 +36,14 @@ param (
         "Preview"
     )]
     [string] $Filter,
+    [ValidateSet(
+        "All",
+        "Current",
+        "Windows",
+        "Linux",
+        "MacOS"
+    )]
+    [string] $Platform = "Current",
     [switch] $Latest,
     [switch] $NoCache
 )
@@ -85,7 +94,7 @@ if ($Version) {
     exit 0
 }
 
-if ($Help -or -not $Target) {
+if ($Help -or -not $PSBoundParameters.Count) {
     Help -HelpFile "${PSScriptRoot}/list.hlp"
 
     exit 0
@@ -93,7 +102,23 @@ if ($Help -or -not $Target) {
 
 
 
-if (-not $Target) {
+if (-not $IsWindows) {
+    exit 1
+}
+
+if ($Runtime -and -not $Channel) {
+    exit 1
+}
+
+if ($Runtimes -and -not $Channel) {
+    exit 1
+}
+
+if ($Target -and $Channels) {
+    exit 1
+}
+
+if ($Target -and $Runtimes) {
     exit 1
 }
 
@@ -101,13 +126,19 @@ if ($Channel -and $Channels) {
     exit 1
 }
 
-if ($Channels -and $Runtime) {
+if ($Runtime -and $Runtimes) {
     exit 1
+}
+
+if (-not $Target -and -not $Online) {
+    if ($Channels -or $Runtimes) {
+        exit 1
+    }
 }
 
 
 
-$DATABASEBASEURI = "https://builds.dotnet.microsoft.com/dotnet/release-metadata"
+$DATABASE_BASE_URI = "https://builds.dotnet.microsoft.com/dotnet/release-metadata"
 
 function Receive-Database {
     param (
@@ -122,6 +153,7 @@ function Receive-Database {
 
         $Response = Invoke-WebRequest -Uri $Uri -UseBasicParsing
         $Content = $Response.Content
+        $Data = $Content | ConvertFrom-Json
 
         if (-not $NoCache) {
             $Content | Set-Content -Path $LocalFile -Encoding utf8
@@ -130,6 +162,8 @@ function Receive-Database {
     catch {
         exit 1
     }
+
+    return $Data
 }
 
 function Read-Database {
@@ -138,11 +172,11 @@ function Read-Database {
         [bool]   $NoCache
     )
 
-    $LocalFile = $Uri -replace [regex]::Escape($DATABASEBASEURI), "${PSScriptRoot}/.cache"
+    $LocalFile = $Uri -replace [regex]::Escape($DATABASE_BASE_URI), "${PSScriptRoot}/.cache"
     $RemoteFile = Invoke-WebRequest -Uri $Uri -Method Head -UseBasicParsing
 
     if (-not $NoCache) {
-        $CachePath = Split-Path $LocalFile -Parent
+        $CachePath = Split-Path -Path $LocalFile -Parent
 
         if (-not (Test-Path -Path $CachePath -PathType Container)) {
             New-Item -Path $CachePath -ItemType Directory -Force | Out-Null
@@ -154,18 +188,18 @@ function Read-Database {
         $RemoteDate = [datetime]::Parse($RemoteFile.Headers["Last-Modified"])
 
         if ($RemoteDate -gt $LocalDate) {
-            Receive-Database -Uri $Uri -NoCache $NoCache
+            $Data = Receive-Database -Uri $Uri -NoCache $NoCache
+        } else {
+            try {
+                $Content = Get-Content -Path $LocalFile -Encoding utf8 -Raw
+                $Data = $Content | ConvertFrom-Json
+            }
+            catch {
+                exit 1
+            }
         }
     } else {
-        Receive-Database -Uri $Uri -NoCache $NoCache
-    }
-
-    try {
-        $Content = Get-Content -Path $LocalFile -Encoding utf8 -Raw
-        $Data = $Content | ConvertFrom-Json
-    }
-    catch {
-        exit 1
+        $Data = Receive-Database -Uri $Uri -NoCache $NoCache
     }
 
     return $Data
@@ -173,10 +207,12 @@ function Read-Database {
 
 
 
-$DOTNETROOT = "/usr/local/share/dotnet"
+if ($IsLinux) {
+    $DOTNET_PATH = "/usr/share/dotnet"
+}
 
-if (-not (Test-Path -Path $DOTNETROOT -PathType Container)) {
-    exit 1
+if ($IsMacOS) {
+    $DOTNET_PATH = "/usr/local/share/dotnet"
 }
 
 function Get-DotNet-Path {
@@ -184,12 +220,16 @@ function Get-DotNet-Path {
         [string] $Target
     )
 
+    if (-not (Test-Path -Path $DOTNET_PATH -PathType Container)) {
+        exit 1
+    }
+
     $DotNetPaths = @{
-        "SDK"                = "${DotNetRoot}/sdk"
-        "Runtime"            = "${DotNetRoot}/shared/Microsoft.NETCore.App"
-        "NetCoreRuntime"     = "${DotNetRoot}/shared/Microsoft.NETCore.App"
-        "DesktopCoreRuntime" = "${DotNetRoot}/shared/Microsoft.WindowsDesktop.App"
-        "AspNetCoreRuntime"  = "${DotNetRoot}/shared/Microsoft.AspNetCore.App"
+        "SDK"                = "${DOTNET_PATH}/sdk"
+        "Runtime"            = "${DOTNET_PATH}/shared/Microsoft.NETCore.App"
+        "NetCoreRuntime"     = "${DOTNET_PATH}/shared/Microsoft.NETCore.App"
+        "DesktopCoreRuntime" = "${DOTNET_PATH}/shared/Microsoft.WindowsDesktop.App"
+        "AspNetCoreRuntime"  = "${DOTNET_PATH}/shared/Microsoft.AspNetCore.App"
     }
 
     $DotNetPath = $DotNetPaths[$Target]
@@ -217,7 +257,46 @@ function Get-Locals {
     return $Locals
 }
 
+function Get-OS {
+    if ($IsWindows) {
+        return "win"
+    }
 
+    if ($IsLinux) {
+        return "linux"
+    }
+
+    if ($IsMacOS) {
+        return "osx"
+    }
+
+    return "unknown"
+}
+
+function Get-Architecture {
+    $Architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+
+    switch ($Architecture) {
+        "X64"   { return "x64" }
+        "X86"   { return "x86" }
+        "Arm"   { return "arm" }
+        "Arm64" { return "arm64" }
+        default { return "unknown" }
+    }
+}
+
+function Get-RID {
+    $OS = Get-OS
+    $Architecture = Get-Architecture
+
+    if ($OS -eq "unknown" -or $Architecture -eq "unknown") {
+        exit 1
+    }
+
+    $RID = "${OS}-${Architecture}"
+
+    return $RID
+}
 
 function Get-Tag {
     param (
@@ -240,29 +319,75 @@ function Get-Output-Object {
         [object] $Parent,
         [object] $Item,
         [string] $PrintableTarget,
-        [string] $ValidTarget
+        [string] $ValidTarget,
+        [bool]   $UseValidTarget
     )
 
-    $Tag = Get-Tag -Version $Item."${ValidTarget}"."version"
-
-    if ($Item."${ValidTarget}"."runtime-version") {
-        $RuntimeVersion = $Item."${ValidTarget}"."runtime-version"
+    if ($UseValidTarget) {
+        $FixedItem = $Item."${ValidTarget}"
     } else {
-        $RuntimeVersion = $Item."${ValidTarget}"."version"
+        $FixedItem = $Item
+    }
+
+    $Tag = Get-Tag -Version $FixedItem."version"
+
+    if ($FixedItem."runtime-version") {
+        $RuntimeVersion = $FixedItem."runtime-version"
+    } else {
+        $RuntimeVersion = $FixedItem."version"
     }
 
     $Object = [PSCustomObject]@{
         "Type"    = $PrintableTarget
 
         "Channel" = $Parent."channel-version"
-        "Version" = $Item."${ValidTarget}"."version"
-        "Display" = $Item."${ValidTarget}"."version-display"
+        "Version" = $FixedItem."version"
+        "Display" = $FixedItem."version-display"
         "Runtime" = $RuntimeVersion
 
         "Tag"     = $Tag
     }
 
     return $Object
+}
+
+function Test-Skip {
+    param (
+        [object] $Locals,
+        [bool]   $Online,
+        [object] $Item,
+        [string] $ValidTarget,
+        [string] $Platform,
+        [bool]   $UseValidTarget
+    )
+
+    if ($UseValidTarget) {
+        $FixedItem = $Item."${ValidTarget}"
+    } else {
+        $FixedItem = $Item
+    }
+
+    if (-not $Online) {
+        $Local = $FixedItem."version"
+
+        if (-not ($Locals -contains $Local)) {
+            return $true
+        }
+    }
+
+    if ($Platform -eq "Current") {
+        $RID = Get-Rid
+
+        $Contains = $FixedItem."files" | Where-Object {
+            $PSItem."rid" -eq $RID
+        }
+
+        if (-not $Contains) {
+            return $true
+        }
+    }
+
+    return $false
 }
 
 
@@ -288,64 +413,25 @@ function Receive-List {
         $ReleasesData = Read-Database -Uri $ReleasesUri -NoCache $NoCache
 
         $ReleasesData."releases" | ForEach-Object {
-            $Item = $PSItem
+            $Skip = Test-Skip `
+                -Locals $Locals `
+                -Online $Online `
+                -Item $PSItem `
+                -ValidTarget $ValidTarget `
+                -Platform $Platform `
+                -UseValidTarget $true
 
-            if (-not $Online) {
-                $Local = $Item."${ValidTarget}"."version"
-
-                if (-not ($Locals -contains $Local)) {
-                    return
-                }
+            if ($Skip) {
+                return
             }
 
             Get-Output-Object `
                 -Parent $Parent `
-                -Item $Item `
+                -Item $PSItem `
                 -PrintableTarget $PrintableTarget `
-                -ValidTarget $ValidTarget
+                -ValidTarget $ValidTarget `
+                -UseValidTarget $true
         }
-    }
-
-    return $Output
-}
-
-function Receive-List-Channels {
-    param (
-        [object] $ReleasesIndexData,
-        [string] $Target,
-        [string] $PrintableTarget,
-        [string] $ValidTarget,
-        [bool]   $NoCache
-    )
-
-    if (-not $Online) {
-        $Locals = Get-Locals -Target $Target
-    }
-
-    $Output = $ReleasesIndexData."releases-index" | ForEach-Object {
-        $Parent = $PSItem
-
-        $ReleasesUri = $PSItem."releases.json"
-
-        $ReleasesData = Read-Database -Uri $ReleasesUri -NoCache $NoCache
-
-        $ReleasesData."releases" | ForEach-Object {
-            $Item = $PSItem
-
-            if (-not $Online) {
-                $Local = $Item."${ValidTarget}"."version"
-
-                if (-not ($Locals -contains $Local)) {
-                    return
-                }
-            }
-
-            Get-Output-Object `
-                -Parent $Parent `
-                -Item $Item `
-                -PrintableTarget $PrintableTarget `
-                -ValidTarget $ValidTarget
-        } | Select-Object -First 1
     }
 
     return $Output
@@ -372,24 +458,31 @@ function Receive-List-Channel {
         }
     }
 
+    if (-not $ReleasesData) {
+        exit 1
+    }
+
     $Parent = $ReleasesData
 
     $Output = $ReleasesData."releases" | ForEach-Object {
-        $Item = $PSItem
+        $Skip = Test-Skip `
+            -Locals $Locals `
+            -Online $Online `
+            -Item $PSItem `
+            -ValidTarget $ValidTarget `
+            -Platform $Platform `
+            -UseValidTarget $true
 
-        if (-not $Online) {
-            $Local = $Item."${ValidTarget}"."version"
-
-            if (-not ($Locals -contains $Local)) {
-                return
-            }
+        if ($Skip) {
+            return
         }
 
         Get-Output-Object `
             -Parent $Parent `
-            -Item $Item `
+            -Item $PSItem `
             -PrintableTarget $PrintableTarget `
-            -ValidTarget $ValidTarget
+            -ValidTarget $ValidTarget `
+            -UseValidTarget $true
     }
 
     return $Output
@@ -416,10 +509,18 @@ function Receive-List-Runtime {
         }
     }
 
+    if (-not $ReleasesData) {
+        exit 1
+    }
+
     $Parent = $ReleasesData
 
     $ReleasesData = $ReleasesData."releases" | Where-Object {
         $PSItem."release-version" -eq $Runtime
+    }
+
+    if (-not $ReleasesData) {
+        exit 1
     }
 
     $Fix = ""
@@ -429,33 +530,75 @@ function Receive-List-Runtime {
     }
 
     $Output = $ReleasesData."${ValidTarget}${Fix}" | ForEach-Object {
-        $Item = $PSItem
+        $Skip = Test-Skip `
+            -Locals $Locals `
+            -Online $Online `
+            -Item $PSItem `
+            -ValidTarget $ValidTarget `
+            -Platform $Platform `
+            -UseValidTarget $false
 
-        if (-not $Online) {
-            $Local = $Item."version"
-
-            if (-not ($Locals -contains $Local)) {
-                return
-            }
+        if ($Skip) {
+            return
         }
 
-        if ($Item."runtime-version") {
-            $RuntimeVersion = $Item."runtime-version"
-        } else {
-            $RuntimeVersion = $Item."version"
-        }
+        Get-Output-Object `
+            -Parent $Parent `
+            -Item $PSItem `
+            -PrintableTarget $PrintableTarget `
+            -ValidTarget $ValidTarget `
+            -UseValidTarget $false
+    }
 
-        $Tag = Get-Tag -Version $Item."${ValidTarget}"."version"
+    return $Output
+}
+
+
+
+function Receive-List-Channels {
+    param (
+        [object] $ReleasesIndexData,
+        [string] $PrintableTarget,
+        [string] $ValidTarget,
+        [bool]   $NoCache
+    )
+
+    $Output = $ReleasesIndexData."releases-index" | ForEach-Object {
+        $ReleasesUri = $PSItem."releases.json"
+
+        $ReleasesData = Read-Database -Uri $ReleasesUri -NoCache $NoCache
 
         [PSCustomObject]@{
-            "Type"    = $PrintableTarget
+            "Channel" = $ReleasesData."channel-version"
+        }
+    }
 
-            "Channel" = $Parent."channel-version"
-            "Version" = $Item."version"
-            "Display" = $Item."version-display"
-            "Runtime" = $RuntimeVersion
+    return $Output
+}
 
-            "Tag "    = $Tag
+function Receive-List-Runtimes {
+    param (
+        [object] $ReleasesIndexData,
+        [string] $PrintableTarget,
+        [string] $ValidTarget,
+        [bool]   $NoCache
+    )
+
+    $ReleasesData = $ReleasesIndexData."releases-index" | ForEach-Object {
+        if ($PSItem."channel-version" -eq $Channel) {
+            $ReleasesUri = $PSItem."releases.json"
+
+            return Read-Database -Uri $ReleasesUri -NoCache $NoCache
+        }
+    }
+
+    if (-not $ReleasesData) {
+        exit 1
+    }
+
+    $Output = $ReleasesData."releases" | ForEach-Object {
+        [PSCustomObject]@{
+            "Runtime" = $PSItem."release-version"
         }
     }
 
@@ -505,7 +648,7 @@ $ValidTarget = Get-ValidTarget -Target $Target
 
 
 
-$ReleasesIndexUri = "${DATABASEBASEURI}/releases-index.json"
+$ReleasesIndexUri = "${DATABASE_BASE_URI}/releases-index.json"
 
 $ReleasesIndexData = Read-Database -Uri $ReleasesIndexUri -NoCache $NoCache
 
@@ -538,36 +681,47 @@ function Write-Output {
     $Output | Format-Table -Property * -AutoSize
 }
 
-if ($Channels) {
-    $Output = Receive-List-Channels `
-        -ReleasesIndexData $ReleasesIndexData `
-        -Target $Target `
-        -PrintableTarget $PrintableTarget `
-        -ValidTarget $ValidTarget `
-        -NoCache $NoCache
-} elseif ($Channel) {
-    if ($Runtime) {
-        $Output = Receive-List-Runtime `
+if ($online -and -not $Target) {
+    if ($Channels) {
+        $Output = Receive-List-Channels `
             -ReleasesIndexData $ReleasesIndexData `
-            -Target $Target `
             -PrintableTarget $PrintableTarget `
             -ValidTarget $ValidTarget `
             -NoCache $NoCache
+    }
+
+    if ($Channel -and $Runtimes) {
+        $Output = Receive-List-Runtimes `
+            -ReleasesIndexData $ReleasesIndexData `
+            -PrintableTarget $PrintableTarget `
+            -ValidTarget $ValidTarget `
+            -NoCache $NoCache
+    }
+} else {
+    if ($Channel) {
+        if ($Runtime) {
+            $Output = Receive-List-Runtime `
+                -ReleasesIndexData $ReleasesIndexData `
+                -Target $Target `
+                -PrintableTarget $PrintableTarget `
+                -ValidTarget $ValidTarget `
+                -NoCache $NoCache
+        } else {
+            $Output = Receive-List-Channel `
+                -ReleasesIndexData $ReleasesIndexData `
+                -Target $Target `
+                -PrintableTarget $PrintableTarget `
+                -ValidTarget $ValidTarget `
+                -NoCache $NoCache
+        }
     } else {
-        $Output = Receive-List-Channel `
+        $Output = Receive-List `
             -ReleasesIndexData $ReleasesIndexData `
             -Target $Target `
             -PrintableTarget $PrintableTarget `
             -ValidTarget $ValidTarget `
             -NoCache $NoCache
     }
-} else {
-    $Output = Receive-List `
-        -ReleasesIndexData $ReleasesIndexData `
-        -Target $Target `
-        -PrintableTarget $PrintableTarget `
-        -ValidTarget $ValidTarget `
-        -NoCache $NoCache
 }
 
 Write-Output -Output $Output -Filter $Filter

@@ -31,17 +31,21 @@ Options:
   -channels
   -channel [...]
     -runtime [...]
+    -runtimes
   -filter [all|releases|rcs|previews]
+  -platform [all|current]
   -latest
-  -nocache
+  -noCache
 
 Examples:
   dotman list sdk -online -channel 8.0 -runtime 8.0.10
   dotman list sdk -online -channel 8.0
-  dotman list sdk -online -channels
   dotman list sdk -online
+  dotman list sdk -online -channels
+  dotman list sdk -online -runtimes
   dotman list runtime -online -channel 8.0 -runtime 8.0.10
   dotman list runtime -online -channel 8.0
-  dotman list runtime -online -channels
   dotman list runtime -online
+  dotman list runtime -online -channels
+  dotman list runtime -online -runtimes
 

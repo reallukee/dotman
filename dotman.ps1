@@ -65,9 +65,11 @@ function Version {
     return $Version
 }
 
+$FixedArgs = $Args
+
 if ($Version) {
     if ($Command) {
-        $Args += "-Version"
+        $FixedArgs += "-Version"
     } else {
         Version
 
@@ -77,7 +79,7 @@ if ($Version) {
 
 if ($Help -or -not $Command) {
     if ($Command) {
-        $Args += "-Help"
+        $FixedArgs += "-Help"
     } else {
         Help -HelpFile "${PSScriptRoot}/dotman.hlp"
 
@@ -87,11 +89,10 @@ if ($Help -or -not $Command) {
 
 
 
-
 if (-not (Test-Path -Path "${PSScriptRoot}/${Command}.ps1" -PathType Leaf)) {
     exit 1
 }
 
-& pwsh "${PSScriptRoot}/${Command}.ps1" @Args
+& pwsh "${PSScriptRoot}/${Command}.ps1" @FixedArgs
 
 exit 0
