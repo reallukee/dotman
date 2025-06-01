@@ -1,0 +1,31 @@
+# ----------------
+# DotMan Installer
+# Help
+# ----------------
+
+------------------------
+DotMan                .
+A Manager for .NET   /|\
+vA.B.C               / \
+------------------------
+
+https://github.com/reallukee/dotman
+
+Description:
+  DotMan Installer Utility
+
+Usage:
+  dotman installer [specialOptions]
+  dotman installer [options]
+
+Speciale options:
+  -about
+  -version
+  -help
+
+Options:
+  -force
+
+Examples:
+  dotman installer -help
+  dotman installer

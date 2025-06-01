@@ -13,13 +13,19 @@
 param (
     [Parameter(Position = 0)]
     [ValidateSet(
+        "Installer",
+        "Uninstaller",
         "List",
-        "Info"
+        "Info",
+        "Install",
+        "Uninstall",
+        "DotMan"
     )]
     [string]   $Command,
 
-    [switch]   $Help,
+    [switch]   $About,
     [switch]   $Version,
+    [switch]   $Help,
 
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $Args
@@ -27,36 +33,79 @@ param (
 
 
 
-function Help {
+#
+# Requirements
+#
+
+if ([version]$PSVersionTable.PSVersion -lt [version]"7.0.0.0") {
+    Write-Error -Message "Unsupported PowerShell version!"
+
+    exit 1
+}
+
+
+
+#
+# General Options
+#
+
+$COMMAND_NAME = "dotman"
+
+$ABOUT_FILE   = "${PSScriptRoot}/abouts/${COMMAND_NAME}.about"
+$VERSION_FILE = "${PSScriptRoot}/versions/${COMMAND_NAME}.version"
+$HELP_FILE    = "${PSScriptRoot}/helps/${COMMAND_NAME}.help"
+
+function Read-File {
     param (
-        [string] $HelpFile
+        [string] $File
     )
 
-    if (-not (Test-Path $HelpFile)) {
+    if (-not (Test-Path -Path $File -PathType Leaf)) {
         exit 1
     }
 
     try {
-        Get-Content -Path $HelpFile | Where-Object {
-            $PSItem -notmatch "^\s*#"
-        } | ForEach-Object {
-            $Version = Version
+        $Content = Get-Content -Path $File -Encoding utf8 -Raw
 
-            $PSItem -replace "A.B.C", $Version
+        $Placeholders = @{
+            "A.B.C"               = Read-Version -Key "Display_Version"
+            "@DISPLAY_VERSION"    = Read-Version -Key "Display_Version"
+            "@VERSION"            = Read-Version -Key "Version"
+            "@MIN_VERSION"        = Read-Version -Key "Min_Version"
         }
+
+        foreach ($Key in $Placeholders.Keys) {
+            $Value = $Placeholders[$Key]
+
+            $Content = $Content -replace [regex]::Escape($Key), $Value
+        }
+
+        $Content = $Content -split "`r?`n" | Where-Object {
+            $PSItem -notmatch "^\s*#"
+        }
+
+        $Content
     }
     catch {
         exit 1
     }
 }
 
-function Version {
-    if (-not (Test-Path -Path "${PSScriptRoot}/VERSION" -PathType Leaf)) {
+function Read-Version {
+    param (
+        [string] $Key
+    )
+
+    if (-not (Test-Path -Path $VERSION_FILE -PathType Leaf)) {
         exit 1
     }
 
     try {
-        $Version = Get-Content -Path "${PSScriptRoot}/VERSION" -Raw
+        $Version = Get-Content -Path $VERSION_FILE -Encoding utf8 | Where-Object {
+            $PSItem -match "^${Key}="
+        } | Select-Object -First 1
+
+        $Version = ($Version -split "=", 2)[1].Trim()
     }
     catch {
         exit 1
@@ -65,34 +114,50 @@ function Version {
     return $Version
 }
 
-$FixedArgs = $Args
+if (-not $Command) {
+    if ($About) {
+        Read-File -File $ABOUT_FILE
+
+        exit 0
+    }
+
+    if ($Version) {
+        Read-Version -Key "Version"
+
+        exit 0
+    }
+
+    if ($Help -or -not $PSBoundParameters.Count) {
+        Read-File -File $HELP_FILE
+
+        exit 0
+    }
+}
+
+
+
+$Module = "${PSScriptRoot}/${Command}.ps1"
+
+$ModuleArgs = @()
+
+if ($About) {
+    $ModuleArgs += "-About"
+}
 
 if ($Version) {
-    if ($Command) {
-        $FixedArgs += "-Version"
-    } else {
-        Version
-
-        exit 0
-    }
+    $ModuleArgs += "-Version"
 }
 
-if ($Help -or -not $Command) {
-    if ($Command) {
-        $FixedArgs += "-Help"
-    } else {
-        Help -HelpFile "${PSScriptRoot}/dotman.hlp"
-
-        exit 0
-    }
+if ($Help) {
+    $ModuleArgs += "-Help"
 }
 
+$ModuleArgs += $Args
 
-
-if (-not (Test-Path -Path "${PSScriptRoot}/${Command}.ps1" -PathType Leaf)) {
+if (-not (Test-Path -Path $Module -PathType Leaf)) {
     exit 1
 }
 
-& pwsh "${PSScriptRoot}/${Command}.ps1" @FixedArgs
+& pwsh $Module @ModuleArgs
 
 exit 0

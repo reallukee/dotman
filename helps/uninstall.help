@@ -1,0 +1,43 @@
+# ----------------
+# DotMan Uninstall
+# Help
+# ----------------
+
+------------------------
+DotMan                .
+A Manager for .NET   /|\
+vA.B.C               / \
+------------------------
+
+https://github.com/reallukee/dotman
+
+Description:
+  DotMan Uninstall Utility
+
+Usage:
+  dotman uninstall [specialOptions]
+  dotman uninstall [target] [options]
+
+Commands:
+  sdk
+  runtime
+  netCoreRuntime
+  desktopCoreRuntime
+  aspNetCoreRuntime
+
+Speciale options:
+  -about
+  -version
+  -help
+
+Options:
+  -path [system|local|custom]
+  -customPath [...]
+  -channel [...]
+    -runtime [...]
+  -noCache
+
+Examples:
+  dotman uninstall sdk -channel 8.0 -runtime 8.1.10 -path system
+  dotman uninstall sdk -channel 8.0 -runtime 8.1.10 -path local
+  dotman uninstall sdk -channel 8.0

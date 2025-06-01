@@ -7,177 +7,172 @@
 #
 # https://github.com/reallukee/dotman
 #
-# uninstaller.ps1
+# installer.ps1
 #
 
 param (
-    [switch] $Help,
+    [switch] $About,
     [switch] $Version,
+    [switch] $Help,
+
+    [ValidateSet(
+        "System",
+        "Local",
+        "Custom"
+    )]
+    [string] $Path = "System",
+    [string] $CustomPath,
 
     [switch] $Force
 )
 
-function Write-Output-VTS {
-    param (
-        [int]    $Color,
-        [string] $Message,
-        [int]    $IndentLevel
-    )
 
-    $Indent = " " * $IndentLevel * 2
 
-    Write-Output "${Indent}`e[${Color}m${Message}`e[0m"
-}
+#
+# Requirements
+#
 
-function Write-Output-Info  {
-    param (
-        [string] $Message,
-        [int]    $IndentLevel
-    )
+if ($IsWindows) {
+    Write-Error -Message "Unsupported platform!"
 
-    Write-Output-VTS -Color 0 -Message $Message -IndentLevel $IndentLevel
-}
-
-function Write-Output-Background  {
-    param (
-        [string] $Message,
-        [int]    $IndentLevel
-    )
-
-    Write-Output-VTS -Color 30 -Message $Message -IndentLevel $IndentLevel
-}
-
-function Write-Output-Success {
-    param (
-        [string] $Message,
-        [int]    $IndentLevel
-    )
-
-    Write-Output-VTS -Color 32 -Message $Message -IndentLevel $IndentLevel
-}
-
-function Write-Output-Warning {
-    param (
-        [string] $Message,
-        [int]    $IndentLevel
-    )
-
-    Write-Output-VTS -Color 33 -Message $Message -IndentLevel $IndentLevel
-}
-
-function Write-Output-Error {
-    param (
-        [string] $Message,
-        [int]    $IndentLevel
-    )
-
-    Write-Output-VTS -Color 31 -Message $Message -IndentLevel $IndentLevel
-}
-
-if (-not (Test-Path -Path "${PSScriptRoot}/VERSION" -PathType Leaf)) {
     exit 1
 }
 
-$THISVERSION = Get-Content -Path "${PSScriptRoot}/VERSION" -Encoding utf8 -Raw
-$PATH = "~/.dotman"
+if ([version]$PSVersionTable.PSVersion -lt [version]"7.0.0.0") {
+    Write-Error -Message "Unsupported PowerShell version!"
 
-if (-not $IsMacOS) {
     exit 1
 }
 
-if ($PSVersionTable.PSEdition -ne "Core") {
-    exit 1
-}
 
-function Read-Json {
+
+#
+# General Options
+#
+
+$COMMAND_NAME = "installer"
+
+$ABOUT_FILE   = "${PSScriptRoot}/abouts/${COMMAND_NAME}.about"
+$VERSION_FILE = "${PSScriptRoot}/versions/${COMMAND_NAME}.version"
+$HELP_FILE    = "${PSScriptRoot}/helps/${COMMAND_NAME}.help"
+
+function Read-File {
     param (
-        [string] $Target
+        [string] $File
     )
+
+    if (-not (Test-Path -Path $File -PathType Leaf)) {
+        exit 1
+    }
 
     try {
-        $Content = Get-Content -Path $Target -Encoding utf8 -Raw
-        $Data = $Content | ConvertFrom-Json
+        $Content = Get-Content -Path $File -Encoding utf8 -Raw
+
+        $Placeholders = @{
+            "A.B.C"               = Read-Version -Key "Display_Version"
+            "@DISPLAY_VERSION"    = Read-Version -Key "Display_Version"
+            "@VERSION"            = Read-Version -Key "Version"
+            "@MIN_VERSION"        = Read-Version -Key "Min_Version"
+        }
+
+        foreach ($Key in $Placeholders.Keys) {
+            $Value = $Placeholders[$Key]
+
+            $Content = $Content -replace [regex]::Escape($Key), $Value
+        }
+
+        $Content = $Content -split "`r?`n" | Where-Object {
+            $PSItem -notmatch "^\s*#"
+        }
+
+        $Content
+    }
+    catch {
+        exit 1
+    }
+}
+
+function Read-Version {
+    param (
+        [string] $Key
+    )
+
+    if (-not (Test-Path -Path $VERSION_FILE -PathType Leaf)) {
+        exit 1
+    }
+
+    try {
+        $Version = Get-Content -Path $VERSION_FILE -Encoding utf8 | Where-Object {
+            $PSItem -match "^${Key}="
+        } | Select-Object -First 1
+
+        $Version = ($Version -split "=", 2)[1].Trim()
     }
     catch {
         exit 1
     }
 
-    return $Data
+    return $Version
 }
 
-$CONFIG = Read-Json -Target "uninstaller.json"
-
-Write-Output-Info "Uninstalling DotMan..."
-
-if (Test-Path -Path $PATH -PathType Container) {
-    if (Test-Path -Path "${PATH}/VERSION" -PathType Leaf) {
-        try {
-            $InstalledVersion = Get-Content -Path "${PATH}/VERSION" -Encoding utf8 -Raw
-
-            if ([version]$InstalledVersion -lt [version]$THISVERSION -and -not $Force) {
-                Write-Output-Error "DotMan is already uninstalled!"
-
-                exit 1
-            }
-        }
-        catch {
-            exit 1
-        }
-    }
-} else {
-    Write-Output-Success -Message "DotMan succefully uninstalled!"
+if ($About) {
+    Read-File -File $ABOUT_FILE
 
     exit 0
 }
 
-Write-Output-Info "Deleting files..."
+if ($Version) {
+    Read-Version -Key "Version"
 
-$CONFIG."files" | ForEach-Object {
-    if (Test-Path -Path $PSItem -PathType Leaf) {
-        Write-Output-Background -Message "Deleting `"${PSItem}`"..." -IndentLevel 1
+    exit 0
+}
 
-        try {
-            Remove-Item -Path "${PATH}/${PSItem}" -Force | Out-Null
+if ($Help) {
+    Read-File -File $HELP_FILE
+
+    exit 0
+}
+
+
+
+switch ($Path) {
+    "System" {
+        if ($IsMacOS) {
+            $DOTMAN_PATH = "/usr/local/share/dotman"
         }
-        catch {
+
+        if ($IsLinux) {
+            $DOTMAN_PATH = "/usr/share/dotman"
+        }
+    }
+
+    "Local" {
+        $DOTMAN_PATH = "${HOME}/.dotman"
+    }
+
+    "Custom" {
+        if ($CustomPath) {
+            $DOTMAN_PATH = $CustomPath
+        } else {
             exit 1
         }
-
-        Write-Output-Success -Message "`"${PSItem}`" deleted!" -IndentLevel 2
     }
 }
 
-Remove-Item -Path $PATH -Force | Out-Null
-
-Write-Output-Success -Message "Files succefully deleted!"
-
-Write-Output-Info -Message "Removing from PATH..."
-
-$Configs = @(
-    "~/.bashrc",
-    "~/.zshrc"
-)
-
-$DotManPath = "export PATH=`"`$PATH:`$HOME/.dotman`""
-
-$Configs | ForEach-Object {
-    if (Test-Path -Path $PSItem -PathType Leaf) {
-        $Content = Get-Content $PSItem -Raw
-
-        Write-Output-Background -Message "Removing to `"${PSItem}`" PATH..." -IndentLevel 1
-
-        if ($Content -match [regex]::Escape($DotManPath)) {
-            $Content = $Content -replace ".*$([regex]::Escape($DotManPath)).*[\r\n]*", ""
-
-            Set-Content -Path $PSItem -Value $Content
-        } else {
-            Write-Output-Success -Message "Already removed!" -IndentLevel 2
-        }
+if (-not (Test-Path -Path $DOTMAN_PATH -PathType Container)) {
+    try {
+        New-Item -Path $DOTMAN_PATH -ItemType Directory -Force | Out-Null
+    }
+    catch {
+        exit 1
     }
 }
 
-Write-Output-Info -Message "Succefully removed from PATH..."
-
-Write-Output-Success -Message "DotMan succefully uninstalled!"
+try {
+    Copy-Item -Path "${PSScriptRoot}/*" -Destination $DOTMAN_PATH -Recurse -Force
+}
+catch {
+    exit 1
+}
 
 exit 0

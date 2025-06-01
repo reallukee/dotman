@@ -1,0 +1,31 @@
+# ------------------
+# DotMan Uninstaller
+# Help
+# ------------------
+
+------------------------
+DotMan                .
+A Manager for .NET   /|\
+vA.B.C               / \
+------------------------
+
+https://github.com/reallukee/dotman
+
+Description:
+  DotMan Uninstaller Utility
+
+Usage:
+  dotman uninstaller [specialOptions]
+  dotman uninstaller [options]
+
+Speciale options:
+  -about
+  -version
+  -help
+
+Options:
+  -force
+
+Examples:
+  dotman uninstaller -force
+  dotman uninstaller

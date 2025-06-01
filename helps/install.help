@@ -1,0 +1,43 @@
+# --------------
+# DotMan Install
+# Help
+# --------------
+
+------------------------
+DotMan                .
+A Manager for .NET   /|\
+vA.B.C               / \
+------------------------
+
+https://github.com/reallukee/dotman
+
+Description:
+  DotMan Install Utility
+
+Usage:
+  dotman install [specialOptions]
+  dotman install [target] [options]
+
+Commands:
+  sdk
+  runtime
+  netCoreRuntime
+  desktopCoreRuntime
+  aspNetCoreRuntime
+
+Speciale options:
+  -about
+  -version
+  -help
+
+Options:
+  -path [system|local|custom]
+  -customPath [...]
+  -channel [...]
+    -runtime [...]
+  -noCache
+
+Examples:
+  dotman install sdk -channel 8.0 -runtime 8.1.10 -path system
+  dotman install sdk -channel 8.0 -runtime 8.1.10 -path local
+  dotman install sdk -channel 8.0

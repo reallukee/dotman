@@ -2,7 +2,7 @@
 ------------------------
 DotMan                .
 A Manager for .NET   /|\
-v0.2.0               / \
+v1.0.0               / \
 ------------------------
 ```
 
@@ -10,8 +10,12 @@ v0.2.0               / \
 
 🧩 A Manager for .NET!
 
+* Modulare
+* Open Source
+* Multipiattaforma
+
 ```
-dotman [Command] [Options]
+dotman [command] [target] [options]
 ```
 
 

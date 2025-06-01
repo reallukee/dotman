@@ -1,0 +1,28 @@
+# -----------
+# DotMan Info
+# Version
+# -----------
+
+# ----------
+# Versioning
+# ----------
+#
+# vA.B.C-TAG
+#
+# A (Major) : Grandi modifiche (Compatibilità non garantita)
+# B (Minor) : Medie modifiche (Compatibilità parzialmente garantita)
+# C (Patch) : Piccole modifiche (Compatibilità garantita)
+#
+# TAG:
+#
+#   - release : Versione completa e affidabile
+#   - rc      : Versione completa e non affidabile
+#   - preview : Versione non completa e non affidabile
+
+# Display_Version : Versione da mostrare in output
+# Version         : Versione
+# Min_Version     : Versione MINIMA (Compatibilità)
+
+Display_Version=1.0.0
+Version=1.0.0
+Min_Version=1.0.0

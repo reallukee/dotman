@@ -13,5 +13,11 @@ indent_size = 2
 [*.yml]
 indent_size = 2
 
-[*.hlp]
+[*.about]
+indent_size = 2
+
+[*.version]
+indent_size = 2
+
+[*.help]
 indent_size = 2

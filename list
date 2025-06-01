@@ -1,3 +1,17 @@
 #!/bin/bash
 
-pwsh "$HOME/.dotman/list.ps1" "$@"
+if ! command -v pwsh >/dev/null 2>&1 ; then
+    echo "PowerShell is required!"
+
+    exit 1
+fi
+
+module="$HOME/.dotman/list.ps1"
+
+if [[ -f "$module" ]]; then
+    pwsh "$module" "$@"
+else
+    echo "Module is missing!"
+
+    exit 1
+fi

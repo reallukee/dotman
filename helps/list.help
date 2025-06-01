@@ -1,0 +1,55 @@
+# -----------
+# DotMan List
+# Help
+# -----------
+
+------------------------
+DotMan                .
+A Manager for .NET   /|\
+vA.B.C               / \
+------------------------
+
+https://github.com/reallukee/dotman
+
+Description:
+  DotMan List Utility
+
+Usage:
+  dotman list [specialOptions]
+  dotman list [options]
+  dotman list [target] [options]
+
+Commands:
+  sdk
+  runtime
+  netCoreRuntime
+  desktopCoreRuntime
+  aspNetCoreRuntime
+
+Speciale options:
+  -about
+  -version
+  -help
+
+Options:
+  -online
+  -path [system|local|custom]
+  -customPath [...]
+  -channels
+  -channel [...]
+    -runtime [...]
+    -runtimes
+  -filter [all|releases|rcs|previews]
+  -platform [all|current]
+  -latest
+  -noCache
+
+Examples:
+  dotman list sdk -online -channel 8.0
+  dotman list sdk
+  dotman list sdk -online -channels
+  dotman list sdk -channels
+  dotman list runtime -online -channel 8.0
+  dotman list runtime
+  dotman list runtime -online -channels
+  dotman list runtime -channels

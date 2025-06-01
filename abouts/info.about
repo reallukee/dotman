@@ -1,0 +1,20 @@
+# -----------
+# DotMan Info
+# About
+# -----------
+
+------------------------
+DotMan                .
+A Manager for .NET   /|\
+vA.B.C               / \
+------------------------
+
+https://github.com/reallukee/dotman
+
+DotMan Info Utility
+
+By Luca Pollicino (https://github.com/reallukee)
+
+Display Version : @DISPLAY_VERSION
+Version         : @VERSION
+Min Version     : @MIN_VERSION
