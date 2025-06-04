@@ -27,5 +27,5 @@ Options:
   -force
 
 Examples:
-  dotman installer -help
+  dotman installer -force
   dotman installer

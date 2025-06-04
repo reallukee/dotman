@@ -1,13 +1,18 @@
 #
-# ------
-# DotMan
-# ------
+# -----------
+# DotMan Info
+# Module
+# -----------
 #
 # A Manager for .NET
 #
 # https://github.com/reallukee/dotman
 #
+# By Luca Pollicino (https://github.com/reallukee)
+#
 # info.ps1
+#
+# Licensed under the MIT license!
 #
 
 param (
@@ -64,10 +69,16 @@ param (
 # Requirements
 #
 
-if ([version]$PSVersionTable.PSVersion -lt [version]"7.0.0.0") {
+$PowerShellVersion = [version]$PSVersionTable.PSVersion
+
+if ($PowerShellVersion -lt [version]"5.1.0.0") {
     Write-Error -Message "Unsupported PowerShell version!"
 
     exit 1
+}
+
+if ($PowerShellVersion -lt [version]"7.0.0.0") {
+    Write-Warning -Message "Unsupported PowerShell version!"
 }
 
 
@@ -387,44 +398,51 @@ function Get-Tag {
 
 function Get-Output-Object {
     param (
-        [object] $Parent,
-        [object] $Item,
+        [object] $ReleaseIndex,
+        [object] $Channel,
+        [object] $Runtime,
+        [object] $Release,
         [bool]   $UseValidTarget
     )
 
     if ($UseValidTarget) {
-        $FixedItem = $Item."${ValidTarget}"
+        $FixedRelease = $Release."${ValidTarget}"
     } else {
-        $FixedItem = $Item
+        $FixedRelease = $Release
     }
 
-    $Tag = Get-Tag -Tag $FixedItem."version"
+    $Tag = Get-Tag -Tag $FixedRelease."version"
 
-    if ($FixedItem."runtime-version") {
-        $RuntimeVersion = $FixedItem."runtime-version"
+    if ($FixedRelease."runtime-version") {
+        $RuntimeVersion = $FixedRelease."runtime-version"
     } else {
-        $RuntimeVersion = $FixedItem."version"
+        $RuntimeVersion = $FixedRelease."version"
     }
 
     $Object = [PSCustomObject]@{
         "Type"             = $PrintableTarget
 
-        "Channel Version"  = $Parent."channel-version"
-        "Support Phase"    = $Parent."support-phase"
-        "Release Type"     = $Parent."release-type"
-        "EOL Date"         = $Parent."eol-date"
-        "Lifecycle Policy" = $Parent."lifecycle-policy"
-        "Release Date"     = $Item."release-date"
-        "Release Version"  = $Item."release-version"
-        "Security"         = $Item."security"
-        "Version"          = $FixedItem."version"
-        "Version Display"  = $FixedItem."version-display"
+        "Channel Version"  = $ReleaseIndex."channel-version"
+        "Product"          = $ReleaseIndex."product"
+
+        "Support Phase"    = $Channel."support-phase"
+        "EOL Date"         = $Channel."eol-date"
+        "Release Type"     = $Channel."release-type"
+        "Lifecycle Policy" = $Channel."lifecycle-policy"
+
+        "Release Date"     = $Runtime."release-date"
+        "Release Version"  = $Runtime."release-version"
+        "Security"         = $Runtime."security"
+        "Release Notes"    = $Runtime."release-notes"
+
+        "Version"          = $FixedRelease."version"
+        "Version Display"  = $FixedRelease."version-display"
         "Runtime Version"  = $RuntimeVersion
-        "VS Version"       = $FixedItem."vs-version"
-        "VS Mac Display"   = $FixedItem."vs-mac-version"
-        "C# Version"       = $FixedItem."csharp-version"
-        "F# Version"       = $FixedItem."fsharp-version"
-        "VB .NET Version"  = $FixedItem."vb-version"
+        "VS Version"       = $FixedRelease."vs-version"
+        "VS Mac Display"   = $FixedRelease."vs-mac-version"
+        "C# Version"       = $FixedRelease."csharp-version"
+        "F# Version"       = $FixedRelease."fsharp-version"
+        "VB .NET Version"  = $FixedRelease."vb-version"
 
         "Tag"              = $Tag
     }
@@ -435,18 +453,18 @@ function Get-Output-Object {
 function Test-Skip {
     param (
         [object] $Locals,
-        [object] $Item,
+        [object] $Release,
         [bool]   $UseValidTarget
     )
 
     if ($UseValidTarget) {
-        $FixedItem = $Item."${ValidTarget}"
+        $FixedRelease = $Release."${ValidTarget}"
     } else {
-        $FixedItem = $Item
+        $FixedRelease = $Release
     }
 
     if (-not $Online) {
-        $Local = $FixedItem."version"
+        $Local = $FixedRelease."version"
 
         if (-not ($Locals -contains $Local)) {
             return $true
@@ -456,7 +474,7 @@ function Test-Skip {
     if ($Platform -eq "Current") {
         $RID = Get-Rid
 
-        $Contains = $FixedItem."files" | Where-Object {
+        $Contains = $FixedRelease."files" | Where-Object {
             $PSItem."rid" -eq $RID
         }
 
@@ -480,16 +498,20 @@ function Receive-Info {
     }
 
     $Output = $ReleasesIndexData."releases-index" | ForEach-Object {
-        $Parent = $PSItem
-
         $ReleasesUri = $PSItem."releases.json"
 
         $ReleasesData = Read-Database -Uri $ReleasesUri
 
+        $ReleaseIndexData = $PSItem
+        $ChannelData = $ReleasesData
+
         $ReleasesData."releases" | ForEach-Object {
+            $RuntimeData = $PSItem
+            $ReleaseData = $PSItem
+
             $Skip = Test-Skip `
                 -Locals $Locals `
-                -Item $PSItem `
+                -Release $ReleaseData `
                 -UseValidTarget $true
 
             if ($Skip) {
@@ -497,8 +519,10 @@ function Receive-Info {
             }
 
             Get-Output-Object `
-                -Parent $Parent `
-                -Item $PSItem `
+                -ReleaseIndex $ReleaseIndexData `
+                -Channel $ChannelData `
+                -Runtime $RuntimeData `
+                -Release $ReleaseData `
                 -UseValidTarget $true
         }
     }
@@ -515,7 +539,7 @@ function Receive-Info-Channel {
         $Locals = Get-Locals
     }
 
-    $ReleasesData = $ReleasesIndexData."releases-index" | ForEach-Object {
+    $ChannelData = $ReleasesIndexData."releases-index" | ForEach-Object {
         if ($PSItem."channel-version" -eq $Channel) {
             $ReleasesUri = $PSItem."releases.json"
 
@@ -523,14 +547,19 @@ function Receive-Info-Channel {
         }
     }
 
-    if (-not $ReleasesData) {
+    if (-not $ChannelData) {
         exit 1
     }
 
-    $Output = $ReleasesData."releases" | ForEach-Object {
+    $ReleaseIndexData = $ChannelData
+
+    $Output = $ChannelData."releases" | ForEach-Object {
+        $RuntimeData = $PSItem
+        $ReleaseData = $PSItem
+
         $Skip = Test-Skip `
             -Locals $Locals `
-            -Item $PSItem `
+            -Release $ReleaseData `
             -UseValidTarget $true
 
         if ($Skip) {
@@ -538,8 +567,10 @@ function Receive-Info-Channel {
         }
 
         Get-Output-Object `
-            -Parent $ReleasesData `
-            -Item $PSItem `
+            -ReleaseIndex $ReleaseIndexData `
+            -Channel $ChannelData `
+            -Runtime $RuntimeData `
+            -Release $ReleaseData `
             -UseValidTarget $true
     }
 
@@ -555,7 +586,7 @@ function Receive-Info-Runtime {
         $Locals = Get-Locals
     }
 
-    $ReleasesData = $ReleasesIndexData."releases-index" | ForEach-Object {
+    $ChannelData = $ReleasesIndexData."releases-index" | ForEach-Object {
         if ($PSItem."channel-version" -eq $Channel) {
             $ReleasesUri = $PSItem."releases.json"
 
@@ -563,15 +594,17 @@ function Receive-Info-Runtime {
         }
     }
 
-    if (-not $ReleasesData) {
+    if (-not $ChannelData) {
         exit 1
     }
 
-    $ReleasesData = $ReleasesData."releases" | Where-Object {
+    $ReleaseIndexData = $ChannelData
+
+    $RuntimeData = $ChannelData."releases" | Where-Object {
         $PSItem."release-version" -eq $Runtime
     }
 
-    if (-not $ReleasesData) {
+    if (-not $RuntimeData) {
         exit 1
     }
 
@@ -581,10 +614,12 @@ function Receive-Info-Runtime {
         $Fix = "s"
     }
 
-    $Output = $ReleasesData."${ValidTarget}${Fix}" | ForEach-Object {
+    $Output = $RuntimeData."${ValidTarget}${Fix}" | ForEach-Object {
+        $ReleaseData = $PSItem
+
         $Skip = Test-Skip `
             -Locals $Locals `
-            -Item $PSItem `
+            -Release $ReleaseData `
             -UseValidTarget $false
 
         if ($Skip) {
@@ -592,8 +627,10 @@ function Receive-Info-Runtime {
         }
 
         Get-Output-Object `
-            -Parent $ReleasesData `
-            -Item $PSItem `
+            -ReleaseIndex $ReleaseIndexData `
+            -Channel $ChannelData `
+            -Runtime $RuntimeData `
+            -Release $ReleaseData `
             -UseValidTarget $false
     }
 
@@ -607,27 +644,60 @@ function Receive-Info-Channels {
         [object] $ReleasesIndexData
     )
 
+    if (-not $Online) {
+        $Locals = Get-Locals
+
+        $regex = [regex]"([0-9]+.[0-9]+).([0-9]+)"
+
+        $Parsed = $Locals | ForEach-Object {
+            if ($regex.IsMatch($PSItem)) {
+                $match = $regex.Match($PSItem)
+
+                [PSCustomObject]@{
+                    "Full Version" = $PSItem
+                    "Channel"      = $match.Groups[1].Value
+                    "Patch"        = $match.Groups[2].Value
+                }
+            }
+        } | Group-Object -Property "Channel" | ForEach-Object {
+            $PSItem.Group | Sort-Object -Property "Patch" -Descending | Select-Object -First 1
+        }
+    }
+
     $Output = $ReleasesIndexData."releases-index" | ForEach-Object {
         $ReleasesUri = $PSItem."releases.json"
 
         $ReleasesData = Read-Database -Uri $ReleasesUri
 
+        $ReleaseIndexData = $PSItem
+        $ChannelData = $ReleasesData
+
         if ($Online) {
             [PSCustomObject]@{
-                "Channel" = $ReleasesData."channel-version"
+                "Channel Version"     = $ReleaseIndexData."channel-version"
+                "Product"             = $ReleaseIndexData."product"
+
+                "Latest Release"      = $ChannelData."latest-release"
+                "Latest Release Date" = $ChannelData."latest-release-date"
+                "Latest Runtime"      = $ChannelData."latest-runtime"
+                "Latest SDK"          = $ChannelData."latest-sdk"
+                "Support Phase"       = $ChannelData."support-phase"
+                "EOL Date"            = $ChannelData."eol-date"
+                "Release Type"        = $ChannelData."release-type"
+                "Lifecycle Policy"    = $ChannelData."lifecycle-policy"
             }
         } else {
-            $Locals = Get-Locals
+            $ChannelData."releases" | ForEach-Object {
+                if ($Parsed."Full Version" -contains $PSItem."${ValidTarget}"."version") {
+                    $RuntimeData = $PSItem
+                    $ReleaseData = $PSItem
 
-            $Parent = $PSItem
-
-            $ReleasesData."releases" | ForEach-Object {
-                if ($Locals -contains $PSItem."${ValidTarget}"."version") {
-                    [PSCustomObject]@{
-                        "Type"    = $PrintableTarget
-
-                        "Channel" = $Parent."channel-version"
-                    }
+                    Get-Output-Object `
+                        -ReleaseIndex $ReleaseIndexData `
+                        -Channel $ChannelData `
+                        -Runtime $RuntimeData `
+                        -Release $ReleaseData `
+                        -UseValidTarget $true
                 }
             }
         }
@@ -641,7 +711,27 @@ function Receive-Info-Runtimes {
         [object] $ReleasesIndexData
     )
 
-    $ReleasesData = $ReleasesIndexData."releases-index" | ForEach-Object {
+    if (-not $Online) {
+        $Locals = Get-Locals
+
+        $regex = [regex]"([0-9]+.[0-9]+).([0-9])+"
+
+        $Parsed = $Locals | ForEach-Object {
+            if ($regex.IsMatch($PSItem)) {
+                $match = $regex.Match($PSItem)
+
+                if ($match.Groups[1].Value -eq $Channel) {
+                    [PSCustomObject]@{
+                        "Full Version" = $PSItem
+                        "Channel"      = $match.Groups[1].Value
+                        "Patch"        = $match.Groups[2].Value
+                    }
+                }
+            }
+        }
+    }
+
+    $ChannelData = $ReleasesIndexData."releases-index" | ForEach-Object {
         if ($PSItem."channel-version" -eq $Channel) {
             $ReleasesUri = $PSItem."releases.json"
 
@@ -649,24 +739,40 @@ function Receive-Info-Runtimes {
         }
     }
 
-    if (-not $ReleasesData) {
+    if (-not $ChannelData) {
         exit 1
     }
 
-    $Output = $ReleasesData."releases" | ForEach-Object {
+    $ReleaseIndexData = $ChannelData
+
+    $Output = $ChannelData."releases" | ForEach-Object {
+        $RuntimeData = $PSItem
+
         if ($Online) {
             [PSCustomObject]@{
-                "Runtime" = $PSItem."release-version"
+                "Channel Version"  = $ReleaseIndexData."channel-version"
+                "Product"          = $ReleaseIndexData."product"
+
+                "Support Phase"    = $ChannelData."support-phase"
+                "EOL Date"         = $ChannelData."eol-date"
+                "Release Type"     = $ChannelData."release-type"
+                "Lifecycle Policy" = $ChannelData."lifecycle-policy"
+                "Release Date"     = $RuntimeData."release-date"
+                "Release Version"  = $RuntimeData."release-version"
+                "Security"         = $RuntimeData."security"
+                "Release Notes"    = $RuntimeData."release-notes"
             }
         } else {
-            $Locals = Get-Locals
+            if ($Parsed."Full Version" -contains $RuntimeData."${ValidTarget}"."version") {
+                $RuntimeData = $PSItem
+                $ReleaseData = $PSItem
 
-            if ($Locals -contains $PSItem."${ValidTarget}"."version") {
-                [PSCustomObject]@{
-                    "Type"    = $PrintableTarget
-
-                    "Runtime" = $PSItem."release-version"
-                }
+                Get-Output-Object `
+                    -ReleaseIndex $ReleaseIndexData `
+                    -Channel $ChannelData `
+                    -Runtime $RuntimeData `
+                    -Release $ReleaseData `
+                    -UseValidTarget $true
             }
         }
     }
@@ -729,25 +835,25 @@ function Write-Output {
 if ($Target) {
     if ($Channel) {
         if ($Runtime) {
-            $Output = Receive-List-Runtime -ReleasesIndexData $ReleasesIndexData
+            $Output = Receive-Info-Runtime -ReleasesIndexData $ReleasesIndexData
         } elseif ($Runtimes) {
-            $Output = Receive-List-Runtimes -ReleasesIndexData $ReleasesIndexData
+            $Output = Receive-Info-Runtimes -ReleasesIndexData $ReleasesIndexData
         } else {
-            $Output = Receive-List-Channel -ReleasesIndexData $ReleasesIndexData
+            $Output = Receive-Info-Channel -ReleasesIndexData $ReleasesIndexData
         }
     } elseif ($Channels) {
-        $Output = Receive-List-Channels -ReleasesIndexData $ReleasesIndexData
+        $Output = Receive-Info-Channels -ReleasesIndexData $ReleasesIndexData
     } else {
-        $Output = Receive-List -ReleasesIndexData $ReleasesIndexData
+        $Output = Receive-Info -ReleasesIndexData $ReleasesIndexData
     }
 } else {
     if ($Online) {
         if ($Channels) {
-            $Output = Receive-List-Channels -ReleasesIndexData $ReleasesIndexData
+            $Output = Receive-Info-Channels -ReleasesIndexData $ReleasesIndexData
         }
 
         if ($Channel -and $Runtimes) {
-            $Output = Receive-List-Runtimes -ReleasesIndexData $ReleasesIndexData
+            $Output = Receive-Info-Runtimes -ReleasesIndexData $ReleasesIndexData
         }
     }
 }

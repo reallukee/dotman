@@ -1,13 +1,18 @@
 #
 # ------
 # DotMan
+# Module
 # ------
 #
 # A Manager for .NET
 #
 # https://github.com/reallukee/dotman
 #
+# By Luca Pollicino (https://github.com/reallukee)
+#
 # dotman.ps1
+#
+# Licensed under the MIT license!
 #
 
 param (
@@ -37,10 +42,16 @@ param (
 # Requirements
 #
 
-if ([version]$PSVersionTable.PSVersion -lt [version]"7.0.0.0") {
+$PowerShellVersion = [version]$PSVersionTable.PSVersion
+
+if ($PowerShellVersion -lt [version]"5.1.0.0") {
     Write-Error -Message "Unsupported PowerShell version!"
 
     exit 1
+}
+
+if ($PowerShellVersion -lt [version]"7.0.0.0") {
+    Write-Warning -Message "Unsupported PowerShell version!"
 }
 
 
