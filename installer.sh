@@ -1,39 +1,36 @@
 #!/bin/bash
 
-if [[ $(uname) == "Darwin" ]]; then
-    DOTMAN_PATH="/usr/local/share/dotman"
-else
-    DOTMAN_PATH="/usr/share/dotman"
-fi
+#
+# --------------------
+# DotMan Installer
+# Linux/macOS Launcher
+# --------------------
+#
+# A modular, open-source and multiplatform manager for .NET
+#
+# https://github.com/reallukee/dotman
+#
+# By Luca Pollicino (https://github.com/reallukee)
+#
+# installer.sh
+#
+# Licensed under the MIT license!
+#
 
-if [[ $# -eq 1 ]]; then
-    if [[ "$1" == "system" ]]; then
-        if [[ $EUID -ne 0 ]]; then
-            exit 1
-        fi
-    fi
+if ! command -v pwsh >/dev/null 2>&1; then
+    echo "PowerShell is required!"
 
-    if [[ "$1" == "local" ]]; then
-        DOTMAN_PATH="$HOME/.dotman"
-
-        if [[ $EUID -eq 0 ]]; then
-            exit 1
-        fi
-    fi
-fi
-
-if [[ $# -eq 2 ]]; then
-    if [[ "$1" == "local" ]]; then
-        DOTMAN_PATH="$2"
-    fi
-fi
-
-if [[ ! -d "$DOTMAN_PATH" ]]; then
-    mkdir -p "$DOTMAN_PATH"
+    exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-cp -r "$SCRIPT_DIR"/* "$DOTMAN_PATH"
+module="$SCRIPT_DIR/installer.ps1"
 
-exit 0
+if [[ -f "$module" ]]; then
+    pwsh "$module" "$@"
+else
+    echo "Module is missing!"
+
+    exit 1
+fi

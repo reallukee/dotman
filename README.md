@@ -1,18 +1,6 @@
-```
-------------------------
-DotMan                .
-A Manager for .NET   /|\
-v1.0.0               / \
-------------------------
-```
-
 # DotMan
 
-🧩 A Manager for .NET!
-
-* Modulare
-* Open Source
-* Multipiattaforma
+🧩 A modular, open-source and multiplatform manager for .NET
 
 ```
 dotman [command] [target] [options]

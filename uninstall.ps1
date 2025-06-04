@@ -1,13 +1,18 @@
 #
-# ------
-# DotMan
-# ------
+# ----------------
+# DotMan Uninstall
+# Module
+# ----------------
 #
-# A Manager for .NET
+# A modular, open-source and multiplatform manager for .NET
 #
 # https://github.com/reallukee/dotman
 #
+# By Luca Pollicino (https://github.com/reallukee)
+#
 # uninstall.ps1
+#
+# Licensed under the MIT license!
 #
 
 param (

@@ -4,7 +4,7 @@
 # Module
 # -----------
 #
-# A Manager for .NET
+# A modular, open-source and multiplatform manager for .NET
 #
 # https://github.com/reallukee/dotman
 #

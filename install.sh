@@ -2,7 +2,7 @@
 
 #
 # --------------------
-# DotMan
+# DotMan Install
 # Linux/macOS Launcher
 # --------------------
 #
@@ -12,7 +12,7 @@
 #
 # By Luca Pollicino (https://github.com/reallukee)
 #
-# dotman.sh
+# install.sh
 #
 # Licensed under the MIT license!
 #
@@ -25,7 +25,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-module="$SCRIPT_DIR/dotman.ps1"
+module="$SCRIPT_DIR/install.ps1"
 
 if [[ -f "$module" ]]; then
     pwsh "$module" "$@"

@@ -1,39 +1,36 @@
 #!/bin/bash
 
-if [[ $(uname) == "Darwin" ]]; then
-    DOTMAN_PATH="/usr/local/share/dotman"
+#
+# --------------------
+# DotMan Uninstaller
+# Linux/macOS Launcher
+# --------------------
+#
+# A modular, open-source and multiplatform manager for .NET
+#
+# https://github.com/reallukee/dotman
+#
+# By Luca Pollicino (https://github.com/reallukee)
+#
+# uninstaller.sh
+#
+# Licensed under the MIT license!
+#
+
+if ! command -v pwsh >/dev/null 2>&1; then
+    echo "PowerShell is required!"
+
+    exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+module="$SCRIPT_DIR/uninstaller.ps1"
+
+if [[ -f "$module" ]]; then
+    pwsh "$module" "$@"
 else
-    DOTMAN_PATH="/usr/share/dotman"
+    echo "Module is missing!"
+
+    exit 1
 fi
-
-if [[ $# -eq 1 ]]; then
-    if [[ "$1" == "system" ]]; then
-        if [[ $EUID -ne 0 ]]; then
-            exit 1
-        fi
-    fi
-
-    if [[ "$1" == "local" ]]; then
-        DOTMAN_PATH="$HOME/.dotman"
-
-        if [[ $EUID -eq 0 ]]; then
-            exit 1
-        fi
-    fi
-fi
-
-if [[ $# -eq 2 ]]; then
-    if [[ "$1" == "local" ]]; then
-        DOTMAN_PATH="$2"
-    fi
-fi
-
-if [[ ! -d "$DOTMAN_PATH" ]]; then
-    exit 0
-fi
-
-rm -rf "$DOTMAN_PATH"/*
-
-rm -rf "$DOTMAN_PATH"
-
-exit 0
