@@ -19,7 +19,7 @@ Usage:
   dotman info [options]
   dotman info [target] [options]
 
-Commands:
+Targets:
   sdk
   runtime
   netCoreRuntime
@@ -34,7 +34,7 @@ Speciale options:
 Options:
   -online
   -path [system|local|custom]
-  -customPath [...]
+    -customPath [...]
   -channels
   -channel [...]
     -runtime [...]
