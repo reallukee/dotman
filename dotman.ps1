@@ -18,8 +18,6 @@
 param (
     [Parameter(Position = 0)]
     [ValidateSet(
-        "Installer",
-        "Uninstaller",
         "List",
         "Info",
         "Install",

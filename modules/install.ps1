@@ -1,8 +1,8 @@
 #
-# -----------
-# DotMan List
+# --------------
+# DotMan Install
 # Module
-# -----------
+# --------------
 #
 # A modular, open-source and multiplatform manager for .NET
 #
@@ -10,7 +10,7 @@
 #
 # By Luca Pollicino (https://github.com/reallukee)
 #
-# list.ps1
+# install.ps1
 #
 # Licensed under the MIT license!
 #
@@ -30,7 +30,6 @@ param (
     [switch] $Version,
     [switch] $Help,
 
-    [switch] $Online,
     [ValidateSet(
         "System",
         "Local",
@@ -39,26 +38,9 @@ param (
     [string] $Path = "System",
     [string] $CustomPath,
 
-    [switch] $Channels,
     [string] $Channel,
-    [switch] $Runtimes,
     [string] $Runtime,
-    [ValidateSet(
-        "All",
-        "Release",
-        "RC",
-        "Preview"
-    )]
-    [string] $Filter,
-    [ValidateSet(
-        "All",
-        "Current",
-        "Windows",
-        "Linux",
-        "MacOS"
-    )]
-    [string] $Platform = "Current",
-    [switch] $Latest,
+    [string] $XVersion,
 
     [switch] $NoCache
 )
@@ -99,6 +81,14 @@ function Write-Output-Fail {
 # Requirements
 #
 
+if (-not $IsMacOS -and $Path -eq "System") {
+    exit 1
+}
+
+if ($IsWindows) {
+    exit 1
+}
+
 $PowerShellVersion = [version]$PSVersionTable.PSVersion
 
 if ($PowerShellVersion -lt [version]"5.1.0.0") {
@@ -117,11 +107,11 @@ if ($PowerShellVersion -lt [version]"7.0.0.0") {
 # General Options
 #
 
-$COMMAND_NAME = "list"
+$COMMAND_NAME = "install"
 
-$ABOUT_FILE   = "${PSScriptRoot}/abouts/${COMMAND_NAME}.about"
-$VERSION_FILE = "${PSScriptRoot}/versions/${COMMAND_NAME}.version"
-$HELP_FILE    = "${PSScriptRoot}/helps/${COMMAND_NAME}.help"
+$ABOUT_FILE   = "${PSScriptRoot}/../abouts/${COMMAND_NAME}.about"
+$VERSION_FILE = "${PSScriptRoot}/../versions/${COMMAND_NAME}.version"
+$HELP_FILE    = "${PSScriptRoot}/../helps/${COMMAND_NAME}.help"
 
 function Read-File {
     param (
@@ -214,19 +204,23 @@ if ($Help -or -not $PSBoundParameters.Count) {
 # Exclusions
 #
 
-if ($Runtime -and -not $Channel) {
+if ($Path -eq "System") {
+    if ([System.Environment]::UserName -ne "root") {
+        Write-Output-Error -Message "root is required!"
+
+        exit 1
+    }
+}
+
+if (-not $Target) {
     exit 1
 }
 
-if ($Runtimes -and -not $Channel) {
+if (-not $Channel -and $Runtime) {
     exit 1
 }
 
-if ($Channel -and $Channels) {
-    exit 1
-}
-
-if ($Runtime -and $Runtimes) {
+if ($XVersion -and $Channel) {
     exit 1
 }
 
@@ -277,7 +271,7 @@ function Read-Database {
         [string] $Uri
     )
 
-    $CacheFolder = "${PSScriptRoot}/.cache"
+    $CacheFolder = "${PSScriptRoot}/../.cache"
 
     $LocalFile = $Uri -replace [regex]::Escape($DATABASE_BASE_URI), $CacheFolder
     $RemoteFile = Invoke-WebRequest -Uri $Uri -Method Head -UseBasicParsing
@@ -347,15 +341,15 @@ switch ($Path) {
 }
 
 if (-not $DOTNET_PATH) {
-    Write-Output-Error -Message "Can't determine .NET path!"
+    # Write-Output-Error -Message "Can't determine .NET path!"
 
-    exit 1
+    # exit 1
 }
 
 if (-not (Test-Path -Path $DOTNET_PATH -PathType Container)) {
     # Write-Output-Error -Message "Can't find .NET path!"
 
-    exit 0
+    # exit 1
 }
 
 function Get-DotNet-Target-Path {
@@ -370,15 +364,15 @@ function Get-DotNet-Target-Path {
     $DotNetPath = $DotNetPaths[$Target]
 
     if (-not $DotNetPath) {
-        Write-Output-Error -Message "Can't determine .NET target path!"
+        # Write-Output-Error -Message "Can't determine .NET target path!"
 
-        exit 1
+        # exit 1
     }
 
     if (-not (Test-Path -Path $DotNetPath -PathType Container)) {
         # Write-Output-Error -Message "Can't find .NET target path!"
 
-        exit 0
+        # exit 1
     }
 
     return $DotNetPath
@@ -497,57 +491,17 @@ function Get-Output-Object {
         "Runtime" = $RuntimeVersion
 
         "Tag"     = $Tag
+
+        "Files"   = $FixedRelease."files"
     }
 
     return $Object
 }
 
-function Test-Skip {
-    param (
-        [object] $Locals,
-        [object] $Release,
-        [bool]   $UseValidTarget
-    )
-
-    if ($UseValidTarget) {
-        $FixedRelease = $Release."${ValidTarget}"
-    } else {
-        $FixedRelease = $Release
-    }
-
-    if (-not $Online) {
-        $Local = $FixedRelease."version"
-
-        if (-not ($Locals -contains $Local)) {
-            return $true
-        }
-    }
-
-    if ($Platform -eq "Current") {
-        $RID = Get-Rid
-
-        $Contains = $FixedRelease."files" | Where-Object {
-            $PSItem."rid" -eq $RID
-        }
-
-        if (-not $Contains) {
-            return $true
-        }
-    }
-
-    return $false
-}
-
-
-
 function Get-Data {
     param (
         [object] $ReleasesIndexData
     )
-
-    if (-not $Online) {
-        $Locals = Get-Locals
-    }
 
     $Output = $ReleasesIndexData."releases-index" | ForEach-Object {
         $ReleasesUri = $PSItem."releases.json"
@@ -567,15 +521,6 @@ function Get-Data {
                 $RuntimeData."${ValidTarget}s" | ForEach-Object {
                     $ReleaseData = $PSItem
 
-                    $Skip = Test-Skip `
-                        -Locals $Locals `
-                        -Release $ReleaseData `
-                        -UseValidTarget $false
-
-                    if ($Skip) {
-                        return
-                    }
-
                     Get-Output-Object `
                         -ReleaseIndex $ReleaseIndexData `
                         -Channel $ChannelData `
@@ -584,21 +529,12 @@ function Get-Data {
                         -UseValidTarget $false
                 }
             } else {
-                $Skip = Test-Skip `
-                    -Locals $Locals `
-                    -Release $ReleaseData `
-                    -UseValidTarget $true
-
-                if ($Skip) {
-                    return
-                }
-
                 Get-Output-Object `
                     -ReleaseIndex $ReleaseIndexData `
                     -Channel $ChannelData `
                     -Runtime $RuntimeData `
                     -Release $ReleaseData `
-                    -UseValidTarget $true
+                    -UseValidTarget $false
             }
         }
     }
@@ -608,149 +544,135 @@ function Get-Data {
 
 
 
-function Receive-List {
+function Install {
     param (
-        [object] $ReleasesIndexData
+        [object] $Output
     )
 
-    $Output = Get-Data -ReleasesIndexData $ReleasesIndexData
+    $RID = Get-RID
+    $Channel = $Output."Channel"
+    $Version = $Output."Version"
 
-    return $Output
+    $File = $Output."files" | Where-Object {
+        $PSItem."rid" -eq $RID -and $PSItem.name -match ".tar.gz"
+    }
+
+    if (-not $File) {
+        exit 1
+    }
+
+    $OutFileUri = $File."url"
+
+    $OutPath = ".cache/${Channel}/${ValidTarget}"
+
+    if (-not (Test-Path -Path $OutPath -PathType Container)) {
+        try {
+            New-Item -Path $OutPath -ItemType Directory -Force | Out-Null
+        }
+        catch {
+            exit 1
+        }
+    }
+
+    $OutFile = "${OutPath}/dotnet-${ValidTarget}-${Version}-${RID}.tar.gz"
+
+    if (-not (Test-Path -Path $OutFile -PathType Leaf)) {
+        try {
+            Invoke-WebRequest -Uri $OutFileUri -OutFile $OutFile
+        }
+        catch {
+            exit 1
+        }
+    }
+
+    $LocalHash = (Get-FileHash -Algorithm SHA512 -Path $OutFile)."hash".ToLower()
+    $RemoteHash = $File."hash".ToLower()
+
+    if ($LocalHash -ne $RemoteHash) {
+        try {
+            Invoke-WebRequest -Uri $OutFileUri -OutFile $OutFile
+        }
+        catch {
+            exit 1
+        }
+
+        if ($LocalHash -ne $RemoteHash) {
+            exit 1
+        }
+    }
+
+    & sudo tar -xzf $OutFile -C $DOTNET_PATH
+
+    if ($NoCache) {
+        try {
+            Remove-Item -Path $OutFile -Force | Out-Null
+        }
+        catch {
+            exit 1
+        }
+    } else {
+        & sudo chown -R $env:USER .cache
+    }
 }
 
-function Receive-List-Channel {
+function Install-Channel {
     param (
         [object] $ReleasesIndexData
     )
+
+    $Locals = Get-Locals
 
     $Output = Get-Data -ReleasesIndexData $ReleasesIndexData
 
     $Output = $Output | Where-Object {
         $PSItem."Channel" -eq $Channel
+    } | Select-Object -First 1
+
+    if ($Locals -contains $Output."version") {
+        exit 1
     }
 
-    if (-not $Output) {
-        Write-Output-Fail -Message "Channel `"${Channel}`" not found or not available for current platform!"
-        Write-Output-Fail -Message "Please try:"
-
-        $OnlineFlag = $Online ? "-online " : ""
-
-        Write-Output-Fail -Message " * `"dotman list ${Target} ${OnlineFlag}-channels`""
-        Write-Output-Fail -Message " * `"dotman list ${Target} ${OnlineFlag}-channel ${Channel} -Platform All`""
-    }
-
-    return $Output
+    Install -Output $Output
 }
 
-function Receive-List-Runtime {
+function Install-Runtime {
     param (
         [object] $ReleasesIndexData
     )
+
+    $Locals = Get-Locals
 
     $Output = Get-Data -ReleasesIndexData $ReleasesIndexData
 
     $Output = $Output | Where-Object {
         $PSItem."Runtime" -eq $Runtime
-    }
+    } | Select-Object -First 1
 
-    if (-not $Output) {
-        Write-Output-Fail -Message "Runtime `"${Runtime}`" not found or not available for current platform!"
-        Write-Output-Fail -Message "Please try:"
-
-        $OnlineFlag = $Online ? "-online " : ""
-
-        Write-Output-Fail -Message " * `"dotman list ${Target} ${OnlineFlag}-channel ${Channel} -runtimes`""
-        Write-Output-Fail -Message " * `"dotman list ${Target} ${OnlineFlag}-channel ${Channel} -runtime ${Runtime} -Platform All`""
-    }
-
-    return $Output
-}
-
-
-
-function Receive-List-Channels {
-    param (
-        [object] $ReleasesIndexData
-    )
-
-    if (-not $Online) {
-        $Locals = Get-Locals
-    }
-
-    $Output = $ReleasesIndexData."releases-index" | ForEach-Object {
-        $ReleasesUri = $PSItem."releases.json"
-
-        $ReleasesData = Read-Database -Uri $ReleasesUri
-
-        $ReleaseIndexData = $PSItem
-        $ChannelData = $ReleasesData
-
-        if ($Online) {
-            [PSCustomObject]@{
-                "Channel" = $ReleaseIndexData."channel-version"
-            }
-        } else {
-            $ChannelData."releases" | ForEach-Object {
-                if ($Locals -contains $PSItem."${ValidTarget}"."version") {
-                    [PSCustomObject]@{
-                        "Channel" = $ReleaseIndexData."channel-version"
-                    }
-                }
-            } | Group-Object -Property "Channel" | ForEach-Object {
-                $PSItem.Group[0]
-            }
-        }
-    }
-
-    return $Output
-}
-
-function Receive-List-Runtimes {
-    param (
-        [object] $ReleasesIndexData
-    )
-
-    if (-not $Online) {
-        $Locals = Get-Locals
-    }
-
-    $ReleaseIndexData = $ReleasesIndexData."releases-index" | ForEach-Object {
-        if ($PSItem."channel-version" -eq $Channel) {
-            $ReleasesUri = $PSItem."releases.json"
-
-            return Read-Database -Uri $ReleasesUri
-        }
-    }
-
-    if (-not $ReleaseIndexData) {
+    if ($Locals -contains $Output."version") {
         exit 1
     }
 
-    $ChannelData = $ReleaseIndexData
+    Install -Output $Output
+}
 
-    $Output = $ChannelData."releases" | ForEach-Object {
-        $RuntimeData = $PSItem
+function Install-XVersion {
+    param (
+        [object] $ReleasesIndexData
+    )
 
-        if ($Online) {
-            [PSCustomObject]@{
-                "Channel" = $ReleaseIndexData."channel-version"
+    $Locals = Get-Locals
 
-                "Runtime" = $RuntimeData."release-version"
-            }
-        } else {
-            if ($Locals -contains $PSItem."${ValidTarget}"."version") {
-                $RuntimeData = $PSItem
+    $Output = Get-Data -ReleasesIndexData $ReleasesIndexData
 
-                [PSCustomObject]@{
-                    "Channel" = $ReleaseIndexData."channel-version"
+    $Output = $Output | Where-Object {
+        $PSItem."Version" -eq $XVersion
+    } | Select-Object -First 1
 
-                    "Runtime" = $RuntimeData."release-version"
-                }
-            }
-        }
+    if ($Locals -contains $Output."version") {
+        exit 1
     }
 
-    return $Output
+    Install -Output $Output
 }
 
 
@@ -781,56 +703,16 @@ $ReleasesIndexUri = "${DATABASE_BASE_URI}/releases-index.json"
 
 $ReleasesIndexData = Read-Database -Uri $ReleasesIndexUri
 
-function Write-Output {
-    if ($Filter) {
-        $Filters = @{
-            "Release" = "release"
-            "RC"      = "rc"
-            "Preview" = "preview"
-        }
-
-        if ($Filters.ContainsKey($Filter)) {
-            $Property = $Filters[$Filter].ToLower()
-
-            $Output = $Output | Where-Object {
-                $PSItem."Tag".ToLower() -eq $Property
-            }
-        }
-    }
-
-    if ($Latest) {
-        $Output = $Output | Select-Object -First 1
-    }
-
-    $Output | Format-Table -Property * -AutoSize
-}
-
-if ($Target) {
-    if ($Channel) {
-        if ($Runtime) {
-            $Output = Receive-List-Runtime -ReleasesIndexData $ReleasesIndexData
-        } elseif ($Runtimes) {
-            $Output = Receive-List-Runtimes -ReleasesIndexData $ReleasesIndexData
-        } else {
-            $Output = Receive-List-Channel -ReleasesIndexData $ReleasesIndexData
-        }
-    } elseif ($Channels) {
-        $Output = Receive-List-Channels -ReleasesIndexData $ReleasesIndexData
+if ($Channel) {
+    if ($Runtime) {
+        Install-Runtime -ReleasesIndexData $ReleasesIndexData
     } else {
-        $Output = Receive-List -ReleasesIndexData $ReleasesIndexData
-    }
-} else {
-    if ($Online) {
-        if ($Channels) {
-            $Output = Receive-List-Channels -ReleasesIndexData $ReleasesIndexData
-        }
-
-        if ($Channel -and $Runtimes) {
-            $Output = Receive-List-Runtimes -ReleasesIndexData $ReleasesIndexData
-        }
+        Install-Channel -ReleasesIndexData $ReleasesIndexData
     }
 }
 
-Write-Output
+if ($XVersion) {
+    Install-XVersion -ReleasesIndexData $ReleasesIndexData
+}
 
 exit 0

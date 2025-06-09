@@ -1,8 +1,8 @@
 #
-# --------------
-# DotMan Install
+# ----------------
+# DotMan Uninstall
 # Module
-# --------------
+# ----------------
 #
 # A modular, open-source and multiplatform manager for .NET
 #
@@ -10,7 +10,7 @@
 #
 # By Luca Pollicino (https://github.com/reallukee)
 #
-# install.ps1
+# uninstall.ps1
 #
 # Licensed under the MIT license!
 #
@@ -107,11 +107,11 @@ if ($PowerShellVersion -lt [version]"7.0.0.0") {
 # General Options
 #
 
-$COMMAND_NAME = "install"
+$COMMAND_NAME = "uninstall"
 
-$ABOUT_FILE   = "${PSScriptRoot}/abouts/${COMMAND_NAME}.about"
-$VERSION_FILE = "${PSScriptRoot}/versions/${COMMAND_NAME}.version"
-$HELP_FILE    = "${PSScriptRoot}/helps/${COMMAND_NAME}.help"
+$ABOUT_FILE   = "${PSScriptRoot}/../abouts/${COMMAND_NAME}.about"
+$VERSION_FILE = "${PSScriptRoot}/../versions/${COMMAND_NAME}.version"
+$HELP_FILE    = "${PSScriptRoot}/../helps/${COMMAND_NAME}.help"
 
 function Read-File {
     param (
@@ -271,7 +271,7 @@ function Read-Database {
         [string] $Uri
     )
 
-    $CacheFolder = "${PSScriptRoot}/.cache"
+    $CacheFolder = "${PSScriptRoot}/../.cache"
 
     $LocalFile = $Uri -replace [regex]::Escape($DATABASE_BASE_URI), $CacheFolder
     $RemoteFile = Invoke-WebRequest -Uri $Uri -Method Head -UseBasicParsing
@@ -544,78 +544,26 @@ function Get-Data {
 
 
 
-function Install {
+function Uninstall {
     param (
         [object] $Output
     )
 
-    $RID = Get-RID
-    $Channel = $Output."Channel"
-    $Version = $Output."Version"
+    $Version = $Output."version"
+    $TargetPath = Get-DotNet-Target-Path
+    $TargetPathVersion = "${TargetPath}/${Version}"
 
-    $File = $Output."files" | Where-Object {
-        $PSItem."rid" -eq $RID -and $PSItem.name -match ".tar.gz"
-    }
-
-    if (-not $File) {
-        exit 1
-    }
-
-    $OutFileUri = $File."url"
-
-    $OutPath = ".cache/${Channel}/${ValidTarget}"
-
-    if (-not (Test-Path -Path $OutPath -PathType Container)) {
+    if (Test-Path -Path $TargetPathVersion -PathType Container) {
         try {
-            New-Item -Path $OutPath -ItemType Directory -Force | Out-Null
+            Remove-Item -Path $TargetPathVersion -Recurse -Force | Out-Null
         }
         catch {
             exit 1
         }
-    }
-
-    $OutFile = "${OutPath}/dotnet-${ValidTarget}-${Version}-${RID}.tar.gz"
-
-    if (-not (Test-Path -Path $OutFile -PathType Leaf)) {
-        try {
-            Invoke-WebRequest -Uri $OutFileUri -OutFile $OutFile
-        }
-        catch {
-            exit 1
-        }
-    }
-
-    $LocalHash = (Get-FileHash -Algorithm SHA512 -Path $OutFile)."hash".ToLower()
-    $RemoteHash = $File."hash".ToLower()
-
-    if ($LocalHash -ne $RemoteHash) {
-        try {
-            Invoke-WebRequest -Uri $OutFileUri -OutFile $OutFile
-        }
-        catch {
-            exit 1
-        }
-
-        if ($LocalHash -ne $RemoteHash) {
-            exit 1
-        }
-    }
-
-    & sudo tar -xzf $OutFile -C $DOTNET_PATH
-
-    if ($NoCache) {
-        try {
-            Remove-Item -Path $OutFile -Force | Out-Null
-        }
-        catch {
-            exit 1
-        }
-    } else {
-        & sudo chown -R $env:USER .cache
     }
 }
 
-function Install-Channel {
+function Uninstall-Channel {
     param (
         [object] $ReleasesIndexData
     )
@@ -628,14 +576,14 @@ function Install-Channel {
         $PSItem."Channel" -eq $Channel
     } | Select-Object -First 1
 
-    if ($Locals -contains $Output."version") {
-        exit 1
+    if (-not ($Locals -contains $Output."version")) {
+        exit 0
     }
 
-    Install -Output $Output
+    Uninstall -Output $Output
 }
 
-function Install-Runtime {
+function Uninstall-Runtime {
     param (
         [object] $ReleasesIndexData
     )
@@ -648,14 +596,14 @@ function Install-Runtime {
         $PSItem."Runtime" -eq $Runtime
     } | Select-Object -First 1
 
-    if ($Locals -contains $Output."version") {
+    if (-not ($Locals -contains $Output."version")) {
         exit 1
     }
 
-    Install -Output $Output
+    Uninstall -Output $Output
 }
 
-function Install-XVersion {
+function Uninstall-XVersion {
     param (
         [object] $ReleasesIndexData
     )
@@ -672,7 +620,11 @@ function Install-XVersion {
         exit 1
     }
 
-    Install -Output $Output
+    if ($Locals -contains $Output."version") {
+        exit 1
+    }
+
+    Uninstall -Output $Output
 }
 
 
@@ -705,14 +657,14 @@ $ReleasesIndexData = Read-Database -Uri $ReleasesIndexUri
 
 if ($Channel) {
     if ($Runtime) {
-        Install-Runtime -ReleasesIndexData $ReleasesIndexData
+        Uninstall-Runtime -ReleasesIndexData $ReleasesIndexData
     } else {
-        Install-Channel -ReleasesIndexData $ReleasesIndexData
+        Uninstall-Channel -ReleasesIndexData $ReleasesIndexData
     }
 }
 
 if ($XVersion) {
-    Install-XVersion -ReleasesIndexData $ReleasesIndexData
+    Uninstall-XVersion -ReleasesIndexData $ReleasesIndexData
 }
 
 exit 0
