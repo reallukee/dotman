@@ -18,7 +18,7 @@ Usage:
   dotman uninstall [specialOptions]
   dotman uninstall [target] [options]
 
-Commands:
+Targets:
   sdk
   runtime
   netCoreRuntime
@@ -32,12 +32,14 @@ Speciale options:
 
 Options:
   -path [system|local|custom]
-  -customPath [...]
+    -customPath [...]
   -channel [...]
     -runtime [...]
+  -xversion [...]
   -noCache
 
 Examples:
   dotman uninstall sdk -channel 8.0 -runtime 8.1.10 -path system
   dotman uninstall sdk -channel 8.0 -runtime 8.1.10 -path local
   dotman uninstall sdk -channel 8.0
+  dotman uninstall sdk -xversion 8.0.200

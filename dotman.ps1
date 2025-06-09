@@ -39,19 +39,49 @@ param (
 
 
 #
+# Output
+#
+
+function Write-Output-Error {
+    param (
+        [string] $Message
+    )
+
+    Write-Host -Message "-------------" -ForegroundColor Red
+    Write-Host -Message "YOOOOO! [>:(]" -ForegroundColor Red
+    Write-Host -Message "DOTMAN   /|\ " -ForegroundColor Red
+    Write-Host -Message "ERROR    / \ " -ForegroundColor Red
+    Write-Host -Message "-------------" -ForegroundColor Red
+
+    Write-Host -Message ""
+
+    Write-Host -Message "[ERROR] ${Message}" -ForegroundColor Red
+}
+
+function Write-Output-Fail {
+    param (
+        [string] $Message
+    )
+
+    Write-Host -Message "[FAIL] ${Message}" -ForegroundColor Red
+}
+
+
+
+#
 # Requirements
 #
 
 $PowerShellVersion = [version]$PSVersionTable.PSVersion
 
 if ($PowerShellVersion -lt [version]"5.1.0.0") {
-    Write-Error -Message "Unsupported PowerShell version!"
+    Write-Output-Error -Message "PowerShell 5.1+ is required!"
 
     exit 1
 }
 
 if ($PowerShellVersion -lt [version]"7.0.0.0") {
-    Write-Warning -Message "Unsupported PowerShell version!"
+    Write-Warning -Message "PowerShell 7+ is recommended!"
 }
 
 
@@ -72,6 +102,8 @@ function Read-File {
     )
 
     if (-not (Test-Path -Path $File -PathType Leaf)) {
+        Write-Output-Error -Message "Can't find `"${File}`"!"
+
         exit 1
     }
 
@@ -79,10 +111,10 @@ function Read-File {
         $Content = Get-Content -Path $File -Encoding utf8 -Raw
 
         $Placeholders = @{
-            "A.B.C"               = Read-Version -Key "Display_Version"
-            "@DISPLAY_VERSION"    = Read-Version -Key "Display_Version"
-            "@VERSION"            = Read-Version -Key "Version"
-            "@MIN_VERSION"        = Read-Version -Key "Min_Version"
+            "A.B.C"            = Read-Version -Key "Display_Version"
+            "@DISPLAY_VERSION" = Read-Version -Key "Display_Version"
+            "@VERSION"         = Read-Version -Key "Version"
+            "@MIN_VERSION"     = Read-Version -Key "Min_Version"
         }
 
         foreach ($Key in $Placeholders.Keys) {
@@ -98,6 +130,8 @@ function Read-File {
         $Content
     }
     catch {
+        Write-Output-Error -Message "Can't read `"${File}`"!"
+
         exit 1
     }
 }
@@ -108,6 +142,8 @@ function Read-Version {
     )
 
     if (-not (Test-Path -Path $VERSION_FILE -PathType Leaf)) {
+        Write-Output-Error -Message "Can't find `"${VERSION_FILE}`"!"
+
         exit 1
     }
 
@@ -119,6 +155,8 @@ function Read-Version {
         $Version = ($Version -split "=", 2)[1].Trim()
     }
     catch {
+        Write-Output-Error -Message "Can't read `"${VERSION_FILE}`"!"
+
         exit 1
     }
 

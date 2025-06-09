@@ -18,7 +18,7 @@ Usage:
   dotman install [specialOptions]
   dotman install [target] [options]
 
-Commands:
+Targets:
   sdk
   runtime
   netCoreRuntime
@@ -32,12 +32,14 @@ Speciale options:
 
 Options:
   -path [system|local|custom]
-  -customPath [...]
+    -customPath [...]
   -channel [...]
     -runtime [...]
+  -xversion [...]
   -noCache
 
 Examples:
   dotman install sdk -channel 8.0 -runtime 8.1.10 -path system
   dotman install sdk -channel 8.0 -runtime 8.1.10 -path local
   dotman install sdk -channel 8.0
+  dotman install sdk -xversion 8.0.200
