@@ -8,18 +8,18 @@ dotman [command] [target] [options]
 
 
 
-# Progressi
+# Moduli
 
-- [ ] Update
-- [ ] Cleanup
+- [x] Refresh
+- [x] Cleanup
 - [x] List
 - [x] Info
 - [x] Install
 - [x] Uninstall
-- [ ] Upgrade
-- [ ] Update
 - [ ] Reinstall
 - [ ] Purge
+- [ ] Upgrade
+- [ ] Prune
 - [x] DotMan
 
 

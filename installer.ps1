@@ -34,19 +34,57 @@ param (
 
 
 #
+# Output
+#
+
+function Write-Output-Error {
+    param (
+        [string] $Message
+    )
+
+    Write-Host -Message "-------------" -ForegroundColor Red
+    Write-Host -Message "YOOOOO! [>:(]" -ForegroundColor Red
+    Write-Host -Message "DOTMAN   /|\ " -ForegroundColor Red
+    Write-Host -Message "ERROR    / \ " -ForegroundColor Red
+    Write-Host -Message "-------------" -ForegroundColor Red
+
+    Write-Host -Message ""
+
+    Write-Host -Message "[ERROR] ${Message}" -ForegroundColor Red
+}
+
+function Write-Output-Fail {
+    param (
+        [string] $Message
+    )
+
+    Write-Host -Message "[FAIL] ${Message}" -ForegroundColor Red
+}
+
+
+
+#
 # Requirements
 #
 
-if ($IsWindows) {
-    Write-Error -Message "Unsupported platform!"
+$PowerShellVersion = [version]$PSVersionTable.PSVersion
+
+if ($PowerShellVersion -lt [version]"5.1.0.0") {
+    Write-Output-Error -Message "PowerShell 5.1+ is required!"
 
     exit 1
 }
 
-if ([version]$PSVersionTable.PSVersion -lt [version]"7.0.0.0") {
-    Write-Error -Message "Unsupported PowerShell version!"
+if ($PowerShellVersion -lt [version]"7.0.0.0") {
+    Write-Warning -Message "PowerShell 7+ is recommended!"
+}
 
-    exit 1
+if ($Path -eq "System") {
+    if ([System.Environment]::UserName -ne "root") {
+        Write-Output-Error -Message "root is required!"
+
+        exit 1
+    }
 }
 
 
@@ -67,6 +105,8 @@ function Read-File {
     )
 
     if (-not (Test-Path -Path $File -PathType Leaf)) {
+        Write-Output-Error -Message "Can't find `"${File}`"!"
+
         exit 1
     }
 
@@ -93,6 +133,8 @@ function Read-File {
         $Content
     }
     catch {
+        Write-Output-Error -Message "Can't read `"${File}`"!"
+
         exit 1
     }
 }
@@ -103,6 +145,8 @@ function Read-Version {
     )
 
     if (-not (Test-Path -Path $VERSION_FILE -PathType Leaf)) {
+        Write-Output-Error -Message "Can't find `"${VERSION_FILE}`"!"
+
         exit 1
     }
 
@@ -114,6 +158,8 @@ function Read-Version {
         $Version = ($Version -split "=", 2)[1].Trim()
     }
     catch {
+        Write-Output-Error -Message "Can't read `"${VERSION_FILE}`"!"
+
         exit 1
     }
 
@@ -149,6 +195,10 @@ switch ($Path) {
         if ($IsLinux) {
             $DOTMAN_PATH = "/usr/share/dotman"
         }
+
+        if ($IsWindows) {
+            $DOTMAN_PATH = "C:/Program Files/dotman"
+        }
     }
 
     "Local" {
@@ -162,22 +212,6 @@ switch ($Path) {
             exit 1
         }
     }
-}
-
-if (-not (Test-Path -Path $DOTMAN_PATH -PathType Container)) {
-    try {
-        New-Item -Path $DOTMAN_PATH -ItemType Directory -Force | Out-Null
-    }
-    catch {
-        exit 1
-    }
-}
-
-try {
-    Copy-Item -Path "${PSScriptRoot}/*" -Destination $DOTMAN_PATH -Recurse -Force
-}
-catch {
-    exit 1
 }
 
 exit 0

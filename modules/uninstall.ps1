@@ -101,6 +101,14 @@ if ($PowerShellVersion -lt [version]"7.0.0.0") {
     Write-Warning -Message "PowerShell 7+ is recommended!"
 }
 
+if ($Path -eq "System") {
+    if ([System.Environment]::UserName -ne "root") {
+        Write-Output-Error -Message "root is required!"
+
+        exit 1
+    }
+}
+
 
 
 #
@@ -203,14 +211,6 @@ if ($Help -or -not $PSBoundParameters.Count) {
 #
 # Exclusions
 #
-
-if ($Path -eq "System") {
-    if ([System.Environment]::UserName -ne "root") {
-        Write-Output-Error -Message "root is required!"
-
-        exit 1
-    }
-}
 
 if (-not $Target) {
     exit 1
@@ -573,7 +573,7 @@ function Uninstall-Channel {
     $Output = Get-Data -ReleasesIndexData $ReleasesIndexData
 
     $Output = $Output | Where-Object {
-        $PSItem."Channel" -eq $Channel
+        $PSItem."channel" -eq $Channel
     } | Select-Object -First 1
 
     if (-not ($Locals -contains $Output."version")) {
@@ -593,11 +593,11 @@ function Uninstall-Runtime {
     $Output = Get-Data -ReleasesIndexData $ReleasesIndexData
 
     $Output = $Output | Where-Object {
-        $PSItem."Runtime" -eq $Runtime
+        $PSItem."runtime" -eq $Runtime
     } | Select-Object -First 1
 
     if (-not ($Locals -contains $Output."version")) {
-        exit 1
+        exit 0
     }
 
     Uninstall -Output $Output
@@ -613,15 +613,11 @@ function Uninstall-XVersion {
     $Output = Get-Data -ReleasesIndexData $ReleasesIndexData
 
     $Output = $Output | Where-Object {
-        $PSItem."Version" -eq $XVersion
+        $PSItem."version" -eq $XVersion
     } | Select-Object -First 1
 
     if ($Locals -contains $Output."version") {
-        exit 1
-    }
-
-    if ($Locals -contains $Output."version") {
-        exit 1
+        exit 0
     }
 
     Uninstall -Output $Output

@@ -18,6 +18,8 @@
 param (
     [Parameter(Position = 0)]
     [ValidateSet(
+        "Refresh",
+        "Cleanup",
         "List",
         "Info",
         "Install",
@@ -183,7 +185,7 @@ if (-not $Command) {
 
 
 
-$Module = "${PSScriptRoot}/${Command}.ps1"
+$Module = "${PSScriptRoot}/modules/${Command}.ps1"
 
 $ModuleArgs = @()
 
