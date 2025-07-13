@@ -1,3 +1,5 @@
+@echo off
+
 rem
 rem ----------------
 rem DotMan Installer
@@ -14,8 +16,6 @@ rem installer.cmd
 rem
 rem Licensed under the MIT license!
 rem
-
-@echo off
 
 setlocal
 

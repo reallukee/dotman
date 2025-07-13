@@ -1,6 +1,6 @@
 # DotMan
 
-🧩 A modular, open-source and multiplatform manager for .NET
+🚀 A modular, open-source and multiplatform manager for .NET
 
 ```
 dotman [command] [target] [options]

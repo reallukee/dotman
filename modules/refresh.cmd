@@ -1,3 +1,5 @@
+@echo off
+
 rem
 rem ----------------
 rem DotMan Refresh
@@ -14,8 +16,6 @@ rem refresh.cmd
 rem
 rem Licensed under the MIT license!
 rem
-
-@echo off
 
 setlocal
 

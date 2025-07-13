@@ -1,0 +1,31 @@
+# --------------
+# DotMan Refresh
+# Help
+# --------------
+
+------------------------
+DotMan                .
+A manager for .NET   /|\
+vA.B.C               / \
+------------------------
+
+https://github.com/reallukee/dotman
+
+Description:
+  DotMan Refresh Utility
+
+Usage:
+  dotman refresh [specialOptions]
+  dotman refresh [options]
+
+Speciale options:
+  -about
+  -version
+  -help
+
+Options:
+  -channel [...]
+
+Examples:
+  dotman refresh -channel 8.0
+  dotman refresh

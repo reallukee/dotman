@@ -22,6 +22,8 @@ Usage:
 Commands:
   installer
   uninstaller
+  refresh
+  cleanup
   list
   info
   install
@@ -36,8 +38,10 @@ Speciale options:
 Examples:
   dotman installer -help
   dotman uninstaller -help
+  dotman refresh -help
+  dotman cleanup -help
   dotman list -help
   dotman info -help
   dotman install -help
-  dotman unintall -help
+  dotman uninstall -help
   dotman dotman -help

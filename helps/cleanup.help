@@ -1,0 +1,31 @@
+# --------------
+# DotMan Cleanup
+# Help
+# --------------
+
+------------------------
+DotMan                .
+A manager for .NET   /|\
+vA.B.C               / \
+------------------------
+
+https://github.com/reallukee/dotman
+
+Description:
+  DotMan Cleanup Utility
+
+Usage:
+  dotman cleanup [specialOptions]
+  dotman cleanup [options]
+
+Speciale options:
+  -about
+  -version
+  -help
+
+Options:
+  -channel [...]
+
+Examples:
+  dotman cleanup -channel 8.0
+  dotman cleanup

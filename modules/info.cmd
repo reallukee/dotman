@@ -1,3 +1,5 @@
+@echo off
+
 rem
 rem ----------------
 rem DotMan Info
@@ -14,8 +16,6 @@ rem info.cmd
 rem
 rem Licensed under the MIT license!
 rem
-
-@echo off
 
 setlocal
 
