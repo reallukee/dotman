@@ -7,12 +7,6 @@ trim_trailing_whitespace = true
 [*.md]
 indent_size = 2
 
-[*.json]
-indent_size = 2
-
-[*.yml]
-indent_size = 2
-
 [*.about]
 indent_size = 2
 

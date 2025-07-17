@@ -4,6 +4,8 @@
 # Dump
 .cache/
 
+*.txt
+
 # Windows
 [Dd]esktop.ini
 

@@ -1,3 +1,9 @@
+> [!WARNING]
+> Al momento questo progetto è considerato archiviato.
+> Non si esclude che, in un futuro vicino ma anche lontano,
+> possa essere attivamente ripreso. Fino a quel momento,
+> questo repository resterà pubblicamente disponibile!
+
 # DotMan
 
 🚀 A modular, open-source and multiplatform manager for .NET
